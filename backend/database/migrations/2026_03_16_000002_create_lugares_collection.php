@@ -15,9 +15,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::connection('mongodb')->create('usuarios', function (Blueprint $collection) {
-            $collection->unique('email');
-            $collection->index('rol');
+        Schema::connection('mongodb')->create('lugares', function (Blueprint $collection) {
+            $collection->index('categoria_id');
+            $collection->index('nombre');
+            $collection->geospatial('ubicacion', '2dsphere');
         });
     }
 
@@ -26,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::connection('mongodb')->drop('usuarios');
+        Schema::connection('mongodb')->drop('lugares');
     }
 };

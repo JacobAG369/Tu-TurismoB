@@ -15,9 +15,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::connection('mongodb')->create('usuarios', function (Blueprint $collection) {
-            $collection->unique('email');
-            $collection->index('rol');
+        Schema::connection('mongodb')->create('notificaciones', function (Blueprint $collection) {
+            $collection->index('usuario_id');
+            $collection->index('leido');
         });
     }
 
@@ -26,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::connection('mongodb')->drop('usuarios');
+        Schema::connection('mongodb')->drop('notificaciones');
     }
 };
