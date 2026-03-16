@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use MongoDB\Laravel\Eloquent\Model;
 
@@ -14,6 +15,8 @@ use MongoDB\Laravel\Eloquent\Model;
  */
 class Categoria extends Model
 {
+    use LogsActivity;
+
     protected $connection = 'mongodb';
 
     protected $collection = 'categorias';
