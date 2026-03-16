@@ -17,6 +17,9 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->prepend(HandleCors::class);
+        $middleware->alias([
+            'vigenere.session' => \App\Http\Middleware\ValidateVigenereSession::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

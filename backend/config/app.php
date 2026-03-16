@@ -123,4 +123,17 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Vigenere Cipher Key
+    |--------------------------------------------------------------------------
+    |
+    | This key is used by VigenereService to encrypt session tokens before
+    | storing them in the sesiones collection. Set it via the VIGENERE_KEY
+    | environment variable.
+    |
+    */
+
+    'vigenere_key' => env('VIGENERE_KEY', ''),
+
 ];
