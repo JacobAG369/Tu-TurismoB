@@ -6,6 +6,8 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CategoriaController;
 use App\Http\Controllers\Api\V1\LugarController;
 use App\Http\Controllers\Api\V1\UsuarioController;
+use App\Http\Controllers\Api\V1\EventoController;
+use App\Http\Controllers\Api\V1\RestauranteController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -14,6 +16,7 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 | All routes here are prefixed with /api/v1 (configured in bootstrap/app.php)
 | and protected by the "api" middleware group.
+|--------------------------------------------------------------------------
 */
 
 // Health-check
@@ -70,6 +73,18 @@ Route::prefix('lugares')->group(function (): void {
     Route::get('/{id}', [LugarController::class, 'show'])->name('lugares.show');
 });
 
+// Eventos — public read (includes radius search via ?lat=&lng=&radio=)
+Route::prefix('eventos')->group(function (): void {
+    Route::get('/',     [EventoController::class, 'index'])->name('eventos.index');
+    Route::get('/{id}', [EventoController::class, 'show'])->name('eventos.show');
+});
+
+// Restaurantes — public read (includes radius search via ?lat=&lng=&radio=)
+Route::prefix('restaurantes')->group(function (): void {
+    Route::get('/',     [RestauranteController::class, 'index'])->name('restaurantes.index');
+    Route::get('/{id}', [RestauranteController::class, 'show'])->name('restaurantes.show');
+});
+
 // ──────────────────────────────────────────────────────────────────────────
 // Protected resource routes  (Sanctum token + Vigenere session validation)
 // ──────────────────────────────────────────────────────────────────────────
@@ -84,4 +99,14 @@ Route::middleware(['auth:sanctum', 'vigenere.session'])->group(function (): void
     Route::post('/lugares',       [LugarController::class, 'store'])->name('lugares.store');
     Route::put('/lugares/{id}',   [LugarController::class, 'update'])->name('lugares.update');
     Route::delete('/lugares/{id}', [LugarController::class, 'destroy'])->name('lugares.destroy');
+
+    // Eventos — admin mutations
+    Route::post('/eventos',       [EventoController::class, 'store'])->name('eventos.store');
+    Route::put('/eventos/{id}',   [EventoController::class, 'update'])->name('eventos.update');
+    Route::delete('/eventos/{id}', [EventoController::class, 'destroy'])->name('eventos.destroy');
+
+    // Restaurantes — admin mutations
+    Route::post('/restaurantes',       [RestauranteController::class, 'store'])->name('restaurantes.store');
+    Route::put('/restaurantes/{id}',   [RestauranteController::class, 'update'])->name('restaurantes.update');
+    Route::delete('/restaurantes/{id}', [RestauranteController::class, 'destroy'])->name('restaurantes.destroy');
 });

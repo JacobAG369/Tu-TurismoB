@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Auth\Authenticatable;
+use Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use MongoDB\Laravel\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use MongoDB\Laravel\Eloquent\Model;
 
 /**
  * @property string $nombre
@@ -16,9 +19,9 @@ use Laravel\Sanctum\HasApiTokens;
  * @property string $rol          admin|turista
  * @property string $imagen_perfil
  */
-class User extends Authenticatable
+class User extends Model implements AuthenticatableContract
 {
-    use HasApiTokens;
+    use Authenticatable, HasApiTokens, Notifiable;
 
     protected $connection = 'mongodb';
 
