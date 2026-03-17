@@ -1,25 +1,22 @@
 <?php
 
-use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
+declare(strict_types=1);
 
-return new class extends Migration
-{
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Support\Facades\Schema;
+use MongoDB\Laravel\Schema\Blueprint;
+
+return new class extends Migration {
+    protected $connection = 'mongodb';
+
     /**
      * Run the migrations.
      */
     public function up(): void
     {
-        Schema::create('personal_access_tokens', function (Blueprint $table) {
-            $table->id();
-            $table->morphs('tokenable');
-            $table->text('name');
-            $table->string('token', 64)->unique();
-            $table->text('abilities')->nullable();
-            $table->timestamp('last_used_at')->nullable();
-            $table->timestamp('expires_at')->nullable()->index();
-            $table->timestamps();
+        Schema::connection('mongodb')->create('personal_access_tokens', function (Blueprint $collection) {
+            $collection->index('token');
+            $collection->index(['tokenable_type', 'tokenable_id']);
         });
     }
 
@@ -28,6 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('personal_access_tokens');
+        Schema::connection('mongodb')->dropIfExists('personal_access_tokens');
     }
 };

@@ -20,6 +20,7 @@ class RegisterRequest extends FormRequest
             'nombre'                => ['required', 'string', 'max:100'],
             'apellido'              => ['required', 'string', 'max:100'],
             'email'                 => ['required', 'email', 'unique:mongodb.usuarios,email'],
+            'telefono'              => ['nullable', 'string', 'max:30'],
             'password'              => ['required', 'string', 'min:8', 'confirmed'],
             'password_confirmation' => ['required', 'string'],
         ];

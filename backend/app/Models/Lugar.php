@@ -7,13 +7,13 @@ namespace App\Models;
 use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use MongoDB\Laravel\Eloquent\Model;
-use MongoDB\Laravel\Eloquent\Builder;
 
 /**
  * @property string $nombre
  * @property string $descripcion
  * @property string $categoria_id
  * @property array  $ubicacion   GeoJSON Point: { type: "Point", coordinates: [lng, lat] }
+ * @property string $direccion
  * @property array  $imagenes
  * @property float  $rating_promedio
  */
@@ -30,6 +30,7 @@ class Lugar extends Model
         'descripcion',
         'categoria_id',
         'ubicacion',
+        'direccion',
         'imagenes',
         'rating_promedio',
     ];
@@ -38,7 +39,6 @@ class Lugar extends Model
     protected function casts(): array
     {
         return [
-            'ubicacion'       => 'array',
             'imagenes'        => 'array',
             'rating_promedio' => 'float',
             'created_at'      => 'datetime',

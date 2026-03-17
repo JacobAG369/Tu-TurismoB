@@ -14,7 +14,9 @@ use MongoDB\Laravel\Eloquent\Model;
  * @property string $telefono
  * @property string $horario
  * @property array  $ubicacion  GeoJSON Point: { type: "Point", coordinates: [lng, lat] }
- * @property float  $rating
+ * @property string $web
+ * @property array  $imagenes
+ * @property float  $rating_promedio
  */
 class Restaurante extends Model
 {
@@ -31,17 +33,19 @@ class Restaurante extends Model
         'telefono',
         'horario',
         'ubicacion',
-        'rating',
+        'web',
+        'imagenes',
+        'rating_promedio',
     ];
 
     /** @return array<string, string> */
     protected function casts(): array
     {
         return [
-            'ubicacion'  => 'array',
-            'rating'     => 'float',
-            'created_at' => 'datetime',
-            'updated_at' => 'datetime',
+            'imagenes'        => 'array',
+            'rating_promedio' => 'float',
+            'created_at'      => 'datetime',
+            'updated_at'      => 'datetime',
         ];
     }
 }

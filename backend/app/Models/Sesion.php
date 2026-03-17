@@ -13,11 +13,13 @@ use MongoDB\Laravel\Eloquent\Model;
  * The token stored here is the Vigenere-encrypted version;
  * the plain token lives exclusively with the Sanctum client.
  *
- * @property string    $user_id
- * @property string    $encrypted_token
+ * @property string    $usuario_id
+ * @property string    $token_id
+ * @property string    $token_vigenere
  * @property string    $ip
- * @property string    $device
- * @property \Carbon\Carbon $expires_at
+ * @property string    $dispositivo
+ * @property \Carbon\Carbon $expira_en
+ * @property \Carbon\Carbon $ultimo_acceso
  */
 class Sesion extends Model
 {
@@ -26,18 +28,21 @@ class Sesion extends Model
     protected $collection = 'sesiones';
 
     protected $fillable = [
-        'user_id',
-        'encrypted_token',
+        'usuario_id',
+        'token_id',
+        'token_vigenere',
         'ip',
-        'device',
-        'expires_at',
+        'dispositivo',
+        'expira_en',
+        'ultimo_acceso',
     ];
 
     /** @return array<string, string> */
     protected function casts(): array
     {
         return [
-            'expires_at' => 'datetime',
+            'expira_en' => 'datetime',
+            'ultimo_acceso' => 'datetime',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];

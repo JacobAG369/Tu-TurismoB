@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Events\EventoCreado;
 use App\Models\Evento;
 use App\Repositories\EventoRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
@@ -72,6 +73,8 @@ class EventoService
 
         /** @var Evento $evento */
         $evento = $this->eventos->create($payload);
+
+        EventoCreado::dispatch($evento);
 
         return $evento;
     }

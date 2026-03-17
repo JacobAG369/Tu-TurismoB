@@ -33,8 +33,8 @@ class ValidateVigenereSession
             ], 401);
         }
 
-        $sessionExists = Sesion::where('user_id', (string) $user->_id)
-            ->where('expires_at', '>', now())
+        $sessionExists = Sesion::where('usuario_id', (string) $user->_id)
+            ->where('expira_en', '>', now())
             ->exists();
 
         if (! $sessionExists) {

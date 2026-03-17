@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Events\LugarCreado;
 use App\Models\Lugar;
 use App\Repositories\LugarRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
@@ -72,6 +73,8 @@ class LugarService
 
         /** @var Lugar $lugar */
         $lugar = $this->lugares->create($payload);
+
+        LugarCreado::dispatch($lugar);
 
         return $lugar;
     }

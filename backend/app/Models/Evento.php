@@ -11,8 +11,11 @@ use MongoDB\Laravel\Eloquent\Model;
  * @property string             $nombre
  * @property string             $descripcion
  * @property \Carbon\Carbon     $fecha
+ * @property \Carbon\Carbon     $fecha_inicio
  * @property array              $ubicacion  GeoJSON Point: { type: "Point", coordinates: [lng, lat] }
- * @property string             $imagen
+ * @property string             $lugar_nombre
+ * @property string             $estado
+ * @property array              $imagenes
  */
 class Evento extends Model
 {
@@ -26,18 +29,22 @@ class Evento extends Model
         'nombre',
         'descripcion',
         'fecha',
+        'fecha_inicio',
         'ubicacion',
-        'imagen',
+        'lugar_nombre',
+        'estado',
+        'imagenes',
     ];
 
     /** @return array<string, string> */
     protected function casts(): array
     {
         return [
-            'ubicacion'  => 'array',
-            'fecha'      => 'datetime',
-            'created_at' => 'datetime',
-            'updated_at' => 'datetime',
+            'fecha'        => 'datetime',
+            'fecha_inicio' => 'datetime',
+            'imagenes'     => 'array',
+            'created_at'   => 'datetime',
+            'updated_at'   => 'datetime',
         ];
     }
 }

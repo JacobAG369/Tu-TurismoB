@@ -9,18 +9,17 @@ use App\Http\Requests\Api\V1\LoginRequest;
 use App\Http\Requests\Api\V1\RegisterRequest;
 use App\Models\Sesion;
 use App\Models\User;
-use App\Services\VigenereService;
+use App\Services\AuthService;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 
 class AuthController extends Controller
 {
     use ApiResponse;
 
     public function __construct(
-        private readonly VigenereService $vigenere,
+        private readonly AuthService $service,
     ) {}
 
     // ──────────────────────────────────────────────
@@ -39,6 +38,7 @@ class AuthController extends Controller
             'nombre'   => $request->string('nombre')->trim()->value(),
             'apellido' => $request->string('apellido')->trim()->value(),
             'email'    => mb_strtolower($request->string('email')->trim()->value()),
+            'telefono' => $request->filled('telefono') ? $request->string('telefono')->trim()->value() : null,
             'password' => $request->string('password')->value(),
             'rol'      => 'turista',
         ]);
@@ -59,56 +59,17 @@ class AuthController extends Controller
      */
     public function login(LoginRequest $request): JsonResponse
     {
-        $credentials = [
-            'email'    => mb_strtolower($request->string('email')->trim()->value()),
-            'password' => $request->string('password')->value(),
-        ];
-
-        if (! Auth::attempt($credentials)) {
+        try {
+            $data = $this->service->login($request, $request->validated());
+        } catch (\RuntimeException $e) {
             return $this->error(
-                message: 'Credenciales incorrectas.',
+                message: $e->getMessage(),
                 code: 401,
             );
         }
 
-        /** @var User $user */
-        $user = Auth::user();
-
-        // Revoke all previous tokens to enforce single active session
-        $user->tokens()->delete();
-
-        // Also remove any leftover session records for this user
-        Sesion::where('user_id', (string) $user->_id)->delete();
-
-        // Generate a new Sanctum token
-        $tokenResult  = $user->createToken('api-token');
-        $plainToken   = $tokenResult->plainTextToken;
-
-        // Encrypt the token string for server-side storage
-        $vigenereKey      = (string) config('app.vigenere_key');
-        $encryptedToken   = $this->vigenere->encrypt($plainToken, $vigenereKey);
-
-        // Persist the encrypted session record
-        Sesion::create([
-            'user_id'         => (string) $user->_id,
-            'encrypted_token' => $encryptedToken,
-            'ip'              => $request->ip() ?? 'unknown',
-            'device'          => $request->userAgent() ?? 'unknown',
-            'expires_at'      => now()->addMinutes((int) config('sanctum.expiration', 43200)),
-        ]);
-
         return $this->success(
-            data: [
-                'token'      => $plainToken,
-                'token_type' => 'Bearer',
-                'user'       => [
-                    'id'       => (string) $user->_id,
-                    'nombre'   => $user->nombre,
-                    'apellido' => $user->apellido,
-                    'email'    => $user->email,
-                    'rol'      => $user->rol,
-                ],
-            ],
+            data: $data,
             message: 'Inicio de sesión exitoso.',
         );
     }
@@ -128,7 +89,7 @@ class AuthController extends Controller
         $user = $request->user();
 
         // Delete matching session from the sesiones collection
-        Sesion::where('user_id', (string) $user->_id)->delete();
+        Sesion::where('usuario_id', (string) $user->_id)->delete();
 
         // Revoke the current token
         $user->currentAccessToken()->delete();
