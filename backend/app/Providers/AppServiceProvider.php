@@ -13,6 +13,10 @@ use App\Repositories\Eloquent\EventoRepository;
 use App\Repositories\EventoRepositoryInterface;
 use App\Repositories\Eloquent\RestauranteRepository;
 use App\Repositories\RestauranteRepositoryInterface;
+use App\Repositories\Eloquent\FavoritoRepository;
+use App\Repositories\FavoritoRepositoryInterface;
+use App\Repositories\Eloquent\ReviewRepository;
+use App\Repositories\ReviewRepositoryInterface;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -27,6 +31,9 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(LugarRepositoryInterface::class, LugarRepository::class);
         $this->app->bind(EventoRepositoryInterface::class, EventoRepository::class);
         $this->app->bind(RestauranteRepositoryInterface::class, RestauranteRepository::class);
+        
+        $this->app->bind(FavoritoRepositoryInterface::class, FavoritoRepository::class);
+        $this->app->bind(ReviewRepositoryInterface::class, ReviewRepository::class);
     }
 
     /**

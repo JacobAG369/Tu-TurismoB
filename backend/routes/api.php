@@ -8,6 +8,8 @@ use App\Http\Controllers\Api\V1\LugarController;
 use App\Http\Controllers\Api\V1\UsuarioController;
 use App\Http\Controllers\Api\V1\EventoController;
 use App\Http\Controllers\Api\V1\RestauranteController;
+use App\Http\Controllers\Api\FavoritoController;
+use App\Http\Controllers\Api\ReviewController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -71,6 +73,7 @@ Route::prefix('categorias')->group(function (): void {
 Route::prefix('lugares')->group(function (): void {
     Route::get('/',     [LugarController::class, 'index'])->name('lugares.index');
     Route::get('/{id}', [LugarController::class, 'show'])->name('lugares.show');
+    Route::get('/{id}/reviews', [ReviewController::class, 'getByLugar'])->name('lugares.reviews');
 });
 
 // Eventos — public read (includes radius search via ?lat=&lng=&radio=)
@@ -109,4 +112,12 @@ Route::middleware(['auth:sanctum', 'vigenere.session'])->group(function (): void
     Route::post('/restaurantes',       [RestauranteController::class, 'store'])->name('restaurantes.store');
     Route::put('/restaurantes/{id}',   [RestauranteController::class, 'update'])->name('restaurantes.update');
     Route::delete('/restaurantes/{id}', [RestauranteController::class, 'destroy'])->name('restaurantes.destroy');
+
+    // Favoritos
+    Route::get('/favoritos', [FavoritoController::class, 'index'])->name('favoritos.index');
+    Route::post('/favoritos/toggle', [FavoritoController::class, 'toggle'])->name('favoritos.toggle');
+
+    // Reviews (User mutations)
+    Route::post('/reviews', [ReviewController::class, 'store'])->name('reviews.store');
+    Route::delete('/reviews/{id}', [ReviewController::class, 'destroy'])->name('reviews.destroy');
 });
