@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\LugarController;
 use App\Http\Controllers\Api\V1\UsuarioController;
 use App\Http\Controllers\Api\V1\EventoController;
 use App\Http\Controllers\Api\V1\RestauranteController;
+use App\Http\Controllers\Api\V1\MapaController;
 use App\Http\Controllers\Api\FavoritoController;
 use App\Http\Controllers\Api\ReviewController;
 use Illuminate\Support\Facades\Route;
@@ -86,6 +87,12 @@ Route::prefix('eventos')->group(function (): void {
 Route::prefix('restaurantes')->group(function (): void {
     Route::get('/',     [RestauranteController::class, 'index'])->name('restaurantes.index');
     Route::get('/{id}', [RestauranteController::class, 'show'])->name('restaurantes.show');
+});
+
+// Mapa — public endpoints
+Route::prefix('mapa')->group(function (): void {
+    Route::get('/marcadores', [MapaController::class, 'getMarkers'])->name('mapa.marcadores');
+    Route::get('/cercanos',   [MapaController::class, 'getNearby'])->name('mapa.cercanos');
 });
 
 // ──────────────────────────────────────────────────────────────────────────
