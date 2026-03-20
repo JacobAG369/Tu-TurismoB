@@ -29,7 +29,7 @@ class EventoCreado implements ShouldBroadcastNow
             'id' => $evento->id,
             'nombre' => $evento->nombre,
             'ubicacion' => $evento->ubicacion,
-            'tipo' => 'evento',
+            'tipo_recurso' => 'evento',
         ];
     }
 

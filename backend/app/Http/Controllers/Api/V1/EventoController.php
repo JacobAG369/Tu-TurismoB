@@ -80,7 +80,7 @@ class EventoController extends Controller
      */
     public function store(StoreEventoRequest $request): JsonResponse
     {
-        $evento = $this->service->create($request->validated());
+        $evento = $this->service->create($request->validated(), $request->file('imagen'));
 
         return $this->success(
             data: $evento,
@@ -99,7 +99,7 @@ class EventoController extends Controller
     public function update(UpdateEventoRequest $request, string $id): JsonResponse
     {
         try {
-            $evento = $this->service->update($id, $request->validated());
+            $evento = $this->service->update($id, $request->validated(), $request->file('imagen'));
         } catch (ModelNotFoundException) {
             return $this->error('Evento no encontrado.', 404);
         }

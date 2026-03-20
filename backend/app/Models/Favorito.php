@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\Models;
 
 use MongoDB\Laravel\Eloquent\Model;
-use MongoDB\Laravel\Relations\BelongsTo;
 
 /**
  * @property string $usuario_id
  * @property string $tipo          lugar|evento|restaurante
  * @property string $referencia_id
+ * @property \Carbon\Carbon|null $fecha_guardado
  */
 class Favorito extends Model
 {
@@ -22,12 +22,14 @@ class Favorito extends Model
         'usuario_id',
         'tipo',
         'referencia_id',
+        'fecha_guardado',
     ];
 
     /** @return array<string, string> */
     protected function casts(): array
     {
         return [
+            'fecha_guardado' => 'datetime',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
         ];

@@ -5,15 +5,19 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Events\EventoCreado;
+use App\Events\NuevoEventoPublicado;
 use App\Models\Evento;
+use App\Models\Notificacion;
 use App\Repositories\EventoRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use InvalidArgumentException;
 
 class EventoService
 {
     public function __construct(
         private readonly EventoRepositoryInterface $eventos,
+        private readonly ImageService $images,
     ) {}
 
     // ──────────────────────────────────────────────
@@ -66,15 +70,24 @@ class EventoService
      * GeoJSON spec: coordinates are [longitude, latitude] (lng FIRST).
      *
      * @param array<string, mixed> $data Must contain latitud, longitud, nombre, descripcion, fecha, imagen.
+     * @throws InvalidArgumentException If image validation fails
      */
-    public function create(array $data): Evento
+    public function create(array $data, ?UploadedFile $image = null): Evento
     {
-        $payload = $this->buildPayload($data);
+        $payload = $this->buildPayload($data, $image);
 
         /** @var Evento $evento */
         $evento = $this->eventos->create($payload);
 
+        Notificacion::create([
+            'usuario_id' => null,
+            'titulo' => 'Nuevo evento turistico disponible',
+            'mensaje' => sprintf('Ya puedes explorar el evento "%s" en el mapa.', $evento->nombre),
+            'leido' => false,
+        ]);
+
         EventoCreado::dispatch($evento);
+        NuevoEventoPublicado::dispatch($evento);
 
         return $evento;
     }
@@ -84,13 +97,14 @@ class EventoService
      *
      * @param array<string, mixed> $data
      * @throws ModelNotFoundException
+     * @throws InvalidArgumentException If image validation fails
      */
-    public function update(string $id, array $data): Evento
+    public function update(string $id, array $data, ?UploadedFile $image = null): Evento
     {
         // Ensure the record exists before updating
         $this->findById($id);
 
-        $payload = $this->buildPayload($data);
+        $payload = $this->buildPayload($data, $image);
 
         /** @var Evento $evento */
         $evento = $this->eventos->update($id, $payload);
@@ -122,9 +136,17 @@ class EventoService
      * @param  array<string, mixed> $data
      * @return array<string, mixed>
      */
-    private function buildPayload(array $data): array
+    private function buildPayload(array $data, ?UploadedFile $image = null): array
     {
         $payload = $data;
+
+        if (array_key_exists('rating', $payload)) {
+            $payload['rating'] = (float) $payload['rating'];
+        }
+
+        if ($image !== null) {
+            $payload['imagenes'] = [$this->images->store($image, 'eventos')];
+        }
 
         if (isset($data['latitud'], $data['longitud'])) {
             $payload['ubicacion'] = [
@@ -137,7 +159,7 @@ class EventoService
         }
 
         // Remove raw coordinate keys — stored only inside `ubicacion`
-        unset($payload['latitud'], $payload['longitud']);
+        unset($payload['latitud'], $payload['longitud'], $payload['imagen']);
 
         return $payload;
     }

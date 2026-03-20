@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\ToggleFavoritoRequest;
+use App\Http\Requests\Api\V1\StoreFavoritoRequest;
 use App\Services\FavoritoService;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -16,7 +16,7 @@ class FavoritoController extends Controller
     use ApiResponse;
 
     public function __construct(
-        protected FavoritoService $favoritoService
+        private readonly FavoritoService $favoritoService,
     ) {}
 
     /**
@@ -24,50 +24,61 @@ class FavoritoController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        try {
-            $userId = (string) auth()->id();
-            
-            if (!$userId) {
-                return $this->error('Usuario no autenticado.', 401);
-            }
+        $userId = (string) auth()->id();
 
-            $favoritos = $this->favoritoService->getFavoritesByUser($userId);
-            
-            return $this->success($favoritos, 'Favoritos obtenidos con éxito.');
-        } catch (\Exception $e) {
-            return $this->error('Error al obtener los favoritos: ' . $e->getMessage(), 500);
+        if ($userId === '') {
+            return $this->error('Usuario no autenticado.', 401);
         }
+
+        return $this->success(
+            $this->favoritoService->getFavoritesByUser($userId),
+            'Favoritos obtenidos con exito.',
+        );
     }
 
-    /**
-     * Toggle a favorite.
-     */
-    public function toggle(ToggleFavoritoRequest $request): JsonResponse
+    public function store(StoreFavoritoRequest $request): JsonResponse
     {
         try {
             $userId = (string) auth()->id();
-            
-            if (!$userId) {
+
+            if ($userId === '') {
                 return $this->error('Usuario no autenticado.', 401);
             }
 
             $data = $request->validated();
-            
-            $result = $this->favoritoService->toggle(
+
+            $favorito = $this->favoritoService->store(
                 $userId,
                 $data['tipo'],
-                $data['referencia_id']
+                $data['referencia_id'],
             );
-            
-            $message = $result['status'] === 'added' 
-                ? 'Agregado a favoritos exitosamente.' 
-                : 'Removido de favoritos exitosamente.';
-                
-            return $this->success(['status' => $result['status']], $message);
-        } catch (\InvalidArgumentException $e) {
-            return $this->error($e->getMessage(), 404);
-        } catch (\Exception $e) {
-            return $this->error('Error al modificar favorito: ' . $e->getMessage(), 500);
+
+            return $this->success($favorito, 'Favorito creado correctamente.', 201);
+        } catch (\RuntimeException $e) {
+            $message = $e->getMessage();
+            $code = $message === 'El recurso ya se encuentra en favoritos.' ? 409 : 404;
+
+            return $this->error($message, $code);
         }
+    }
+
+    public function destroy(string $referenciaId): JsonResponse
+    {
+        $userId = (string) auth()->id();
+
+        if ($userId === '') {
+            return $this->error('Usuario no autenticado.', 401);
+        }
+
+        $deleted = $this->favoritoService->destroy($userId, $referenciaId);
+
+        if (! $deleted) {
+            return $this->error('Favorito no encontrado.', 404);
+        }
+
+        return $this->success([
+            'referencia_id' => $referenciaId,
+            'deleted' => true,
+        ], 'Favorito eliminado correctamente.');
     }
 }

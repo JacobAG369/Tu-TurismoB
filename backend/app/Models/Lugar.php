@@ -15,6 +15,7 @@ use MongoDB\Laravel\Eloquent\Model;
  * @property array  $ubicacion   GeoJSON Point: { type: "Point", coordinates: [lng, lat] }
  * @property string $direccion
  * @property array  $imagenes
+ * @property float  $rating
  * @property float  $rating_promedio
  */
 class Lugar extends Model
@@ -32,6 +33,7 @@ class Lugar extends Model
         'ubicacion',
         'direccion',
         'imagenes',
+        'rating',
         'rating_promedio',
     ];
 
@@ -40,6 +42,7 @@ class Lugar extends Model
     {
         return [
             'imagenes'        => 'array',
+            'rating'          => 'float',
             'rating_promedio' => 'float',
             'created_at'      => 'datetime',
             'updated_at'      => 'datetime',

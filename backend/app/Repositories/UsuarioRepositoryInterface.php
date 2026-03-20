@@ -9,6 +9,11 @@ use App\Models\User;
 interface UsuarioRepositoryInterface extends BaseRepositoryInterface
 {
     /**
+     * @return \Illuminate\Database\Eloquent\Collection<int, User>
+     */
+    public function getAllOrdered(): \Illuminate\Database\Eloquent\Collection;
+
+    /**
      * Find a user by their email address.
      */
     public function findByEmail(string $email): ?User;

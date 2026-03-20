@@ -5,9 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
-use App\Models\Evento;
-use App\Models\Lugar;
-use App\Models\Restaurante;
+use App\Services\MapaService;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,52 +14,16 @@ class MapaController extends Controller
 {
     use ApiResponse;
 
+    public function __construct(
+        private readonly MapaService $service,
+    ) {}
+
     /**
      * Get all markers (Lugares, Eventos, Restaurantes) for the map.
      */
-    public function getMarkers(): JsonResponse
+    public function getMarkers(Request $request): JsonResponse
     {
-        // 1. Fetch Lugares
-        $lugares = Lugar::select('_id', 'nombre', 'categoria_id', 'ubicacion')
-            ->get()
-            ->map(function ($item) {
-                return [
-                    'id'           => $item->_id,
-                    'nombre'       => $item->nombre,
-                    'categoria_id' => $item->categoria_id,
-                    'ubicacion'    => $item->ubicacion,
-                    'tipo'         => 'lugar',
-                ];
-            });
-
-        // 2. Fetch Eventos
-        $eventos = Evento::select('_id', 'nombre', 'ubicacion')
-            ->get()
-            ->map(function ($item) {
-                return [
-                    'id'           => $item->_id,
-                    'nombre'       => $item->nombre,
-                    'categoria_id' => null,
-                    'ubicacion'    => $item->ubicacion,
-                    'tipo'         => 'evento',
-                ];
-            });
-
-        // 3. Fetch Restaurantes
-        $restaurantes = Restaurante::select('_id', 'nombre', 'ubicacion')
-            ->get()
-            ->map(function ($item) {
-                return [
-                    'id'           => $item->_id,
-                    'nombre'       => $item->nombre,
-                    'categoria_id' => null,
-                    'ubicacion'    => $item->ubicacion,
-                    'tipo'         => 'restaurante',
-                ];
-            });
-
-        // Merge all collections
-        $marcadores = $lugares->concat($eventos)->concat($restaurantes);
+        $marcadores = $this->service->getMarkers($request->string('categoria_id')->value());
 
         return $this->success(
             data: $marcadores,

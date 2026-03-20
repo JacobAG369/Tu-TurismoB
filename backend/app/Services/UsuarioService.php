@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Repositories\UsuarioRepositoryInterface;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Hash;
 
 class UsuarioService
@@ -13,6 +14,59 @@ class UsuarioService
     public function __construct(
         private readonly UsuarioRepositoryInterface $usuarios,
     ) {}
+
+    /**
+     * @return Collection<int, User>
+     */
+    public function getAll(): Collection
+    {
+        return $this->usuarios->getAllOrdered();
+    }
+
+    public function findByEmail(string $email): ?User
+    {
+        return $this->usuarios->findByEmail($email);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public function create(array $data): User
+    {
+        $payload = $data;
+        $payload['password'] = Hash::make((string) $data['password']);
+
+        /** @var User $user */
+        $user = $this->usuarios->create($payload);
+
+        return $user;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public function update(User $user, array $data): User
+    {
+        $payload = $data;
+
+        if (array_key_exists('password', $payload)) {
+            if ($payload['password'] === null || $payload['password'] === '') {
+                unset($payload['password']);
+            } else {
+                $payload['password'] = Hash::make((string) $payload['password']);
+            }
+        }
+
+        /** @var User $updated */
+        $updated = $this->usuarios->update((string) $user->_id, $payload);
+
+        return $updated;
+    }
+
+    public function delete(User $user): void
+    {
+        $this->usuarios->delete((string) $user->_id);
+    }
 
     // ──────────────────────────────────────────────
     // Profile

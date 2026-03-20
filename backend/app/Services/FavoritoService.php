@@ -4,79 +4,125 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Models\Evento;
+use App\Models\Favorito;
+use App\Models\Lugar;
+use App\Models\Restaurante;
 use App\Repositories\FavoritoRepositoryInterface;
 use App\Repositories\LugarRepositoryInterface;
 use App\Repositories\EventoRepositoryInterface;
 use App\Repositories\RestauranteRepositoryInterface;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 
 class FavoritoService
 {
     public function __construct(
-        protected FavoritoRepositoryInterface $favoritoRepository,
-        protected LugarRepositoryInterface $lugarRepository,
-        protected EventoRepositoryInterface $eventoRepository,
-        protected RestauranteRepositoryInterface $restauranteRepository
+        private readonly FavoritoRepositoryInterface $favoritoRepository,
+        private readonly LugarRepositoryInterface $lugarRepository,
+        private readonly EventoRepositoryInterface $eventoRepository,
+        private readonly RestauranteRepositoryInterface $restauranteRepository,
     ) {}
 
     /**
-     * Get all favorites for a specific user.
+     * @return Collection<int, array<string, mixed>>
      */
-    public function getFavoritesByUser(string $userId)
+    public function getFavoritesByUser(string $userId): Collection
     {
-        return $this->favoritoRepository->getFavoritesByUser($userId, 0); // 0 means return all, or could pass pagination
+        return $this->favoritoRepository
+            ->getFavoritesByUser($userId)
+            ->map(fn (Favorito $favorito): array => $this->enrichFavorite($favorito));
     }
 
     /**
-     * Toggles a favorite for a user.
-     * Returns an array with the 'status' key: 'added' or 'removed'.
-     *
-     * @param string $userId
-     * @param string $tipo
-     * @param string $referenciaId
-     * @return array
-     * @throws \InvalidArgumentException
+     * @return array<string, mixed>
      */
-    public function toggle(string $userId, string $tipo, string $referenciaId): array
+    public function store(string $userId, string $tipo, string $referenciaId): array
     {
-        // Validate that the reference exists
-        $exists = false;
-        switch ($tipo) {
-            case 'lugar':
-                $exists = (bool) $this->lugarRepository->find($referenciaId);
-                break;
-            case 'evento':
-                $exists = (bool) $this->eventoRepository->find($referenciaId);
-                break;
-            case 'restaurante':
-                $exists = (bool) $this->restauranteRepository->find($referenciaId);
-                break;
+        $resource = $this->findResource($tipo, $referenciaId);
+
+        if ($resource === null) {
+            throw new \RuntimeException('El recurso referenciado no existe.');
         }
 
-        if (!$exists) {
-            throw new \InvalidArgumentException("La referencia '{$referenciaId}' no se encontró en la colección de '{$tipo}'.");
+        $existing = $this->favoritoRepository->findByUserAndReference($userId, $tipo, $referenciaId);
+
+        if ($existing !== null) {
+            throw new \RuntimeException('El recurso ya se encuentra en favoritos.');
         }
 
-        // Check if the favorite already exists
-        $favorito = $this->favoritoRepository->findByUserAndReference($userId, $tipo, $referenciaId);
-
-        if ($favorito) {
-            // Remove it
-            $this->favoritoRepository->delete($favorito->id);
-            Log::info("Favorito removido: Tipo [{$tipo}], Referencia [{$referenciaId}], Usuario [{$userId}]");
-            
-            return ['status' => 'removed'];
-        }
-
-        // Add it
-        $this->favoritoRepository->create([
+        $favorito = $this->favoritoRepository->create([
             'usuario_id' => $userId,
             'tipo' => $tipo,
             'referencia_id' => $referenciaId,
+            'fecha_guardado' => now(),
         ]);
 
-        Log::info("Favorito agregado: Tipo [{$tipo}], Referencia [{$referenciaId}], Usuario [{$userId}]");
+        return $this->enrichFavorite($favorito);
+    }
 
-        return ['status' => 'added'];
+    public function destroy(string $userId, string $referenciaId): bool
+    {
+        return $this->favoritoRepository->deleteByUserAndResourceId($userId, $referenciaId);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function enrichFavorite(Favorito $favorito): array
+    {
+        $resource = $this->findResource($favorito->tipo, $favorito->referencia_id);
+
+        return [
+            'id' => (string) $favorito->_id,
+            'usuario_id' => $favorito->usuario_id,
+            'tipo' => $favorito->tipo,
+            'referencia_id' => $favorito->referencia_id,
+            'fecha_guardado' => $favorito->fecha_guardado?->toIso8601String(),
+            'recurso' => [
+                'id' => $favorito->referencia_id,
+                'nombre' => $resource?->nombre,
+                'imagen' => $this->resolveImage($resource),
+                'rating' => $this->resolveRating($resource),
+            ],
+        ];
+    }
+
+    private function findResource(string $tipo, string $referenciaId): Lugar|Evento|Restaurante|null
+    {
+        return match ($tipo) {
+            'lugar' => $this->lugarRepository->findById($referenciaId),
+            'evento' => $this->eventoRepository->findById($referenciaId),
+            'restaurante' => $this->restauranteRepository->findById($referenciaId),
+            default => null,
+        };
+    }
+
+    private function resolveImage(?Model $resource): ?string
+    {
+        if ($resource === null) {
+            return null;
+        }
+
+        $imagenes = $resource->imagenes ?? [];
+
+        return is_array($imagenes) && isset($imagenes[0]) ? (string) $imagenes[0] : null;
+    }
+
+    private function resolveRating(?Model $resource): ?float
+    {
+        if ($resource === null) {
+            return null;
+        }
+
+        if (isset($resource->rating_promedio)) {
+            return (float) $resource->rating_promedio;
+        }
+
+        if (isset($resource->puntuacion_promedio)) {
+            return (float) $resource->puntuacion_promedio;
+        }
+
+        return null;
     }
 }

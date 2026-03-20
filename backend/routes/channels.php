@@ -6,5 +6,12 @@ Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
     return (int) $user->id === (int) $id;
 });
 
-// The 'turismo-updates' channel is public, hence no authorization callback is required.
-// Anyone can listen to events broadcasted on this channel.
+/*
+|--------------------------------------------------------------------------
+| Public Broadcast Channels
+|--------------------------------------------------------------------------
+|
+| The map listens on the public `mapa-actualizaciones` channel. Since it is
+| public, no authorization callback is required here.
+|
+*/

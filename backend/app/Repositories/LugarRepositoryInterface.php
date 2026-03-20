@@ -5,14 +5,22 @@ declare(strict_types=1);
 namespace App\Repositories;
 
 use App\Models\Lugar;
-use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Support\Collection;
 
 interface LugarRepositoryInterface extends BaseRepositoryInterface
 {
     /**
+     * Return lightweight map markers from the lugares collection.
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    public function getMapMarkers(): Collection;
+
+    /**
      * Return all Lugares with their categoria eager-loaded.
      */
-    public function all(): Collection;
+    public function all(): EloquentCollection;
 
     /**
      * Find a single Lugar by its MongoDB _id, with categoria eager-loaded.
@@ -25,5 +33,5 @@ interface LugarRepositoryInterface extends BaseRepositoryInterface
      *
      * @return Collection<int, Lugar>
      */
-    public function searchByRadius(float $lat, float $lng, int $radiusInMeters): Collection;
+    public function searchByRadius(float $lat, float $lng, int $radiusInMeters): EloquentCollection;
 }

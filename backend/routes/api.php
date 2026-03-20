@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\V1\UsuarioController;
 use App\Http\Controllers\Api\V1\EventoController;
 use App\Http\Controllers\Api\V1\RestauranteController;
 use App\Http\Controllers\Api\V1\MapaController;
+use App\Http\Controllers\Api\V1\AdminController;
 use App\Http\Controllers\Api\FavoritoController;
 use App\Http\Controllers\Api\ReviewController;
 use Illuminate\Support\Facades\Route;
@@ -47,6 +48,7 @@ Route::prefix('auth')
     ->group(function (): void {
         Route::post('/logout', [AuthController::class, 'logout'])->name('auth.logout');
         Route::get('/me',     [AuthController::class, 'me'])->name('auth.me');
+        Route::get('/session', [AuthController::class, 'session'])->name('auth.session');
     });
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -100,31 +102,38 @@ Route::prefix('mapa')->group(function (): void {
 // ──────────────────────────────────────────────────────────────────────────
 Route::middleware(['auth:sanctum', 'vigenere.session'])->group(function (): void {
 
-    // Categorias — admin mutations
-    Route::post('/categorias',      [CategoriaController::class, 'store'])->name('categorias.store');
-    Route::put('/categorias/{id}',  [CategoriaController::class, 'update'])->name('categorias.update');
-    Route::delete('/categorias/{id}', [CategoriaController::class, 'destroy'])->name('categorias.destroy');
-
-    // Lugares — admin mutations
-    Route::post('/lugares',       [LugarController::class, 'store'])->name('lugares.store');
-    Route::put('/lugares/{id}',   [LugarController::class, 'update'])->name('lugares.update');
-    Route::delete('/lugares/{id}', [LugarController::class, 'destroy'])->name('lugares.destroy');
-
-    // Eventos — admin mutations
-    Route::post('/eventos',       [EventoController::class, 'store'])->name('eventos.store');
-    Route::put('/eventos/{id}',   [EventoController::class, 'update'])->name('eventos.update');
-    Route::delete('/eventos/{id}', [EventoController::class, 'destroy'])->name('eventos.destroy');
-
-    // Restaurantes — admin mutations
-    Route::post('/restaurantes',       [RestauranteController::class, 'store'])->name('restaurantes.store');
-    Route::put('/restaurantes/{id}',   [RestauranteController::class, 'update'])->name('restaurantes.update');
-    Route::delete('/restaurantes/{id}', [RestauranteController::class, 'destroy'])->name('restaurantes.destroy');
-
     // Favoritos
     Route::get('/favoritos', [FavoritoController::class, 'index'])->name('favoritos.index');
-    Route::post('/favoritos/toggle', [FavoritoController::class, 'toggle'])->name('favoritos.toggle');
+    Route::post('/favoritos', [FavoritoController::class, 'store'])->name('favoritos.store');
+    Route::delete('/favoritos/{referencia_id}', [FavoritoController::class, 'destroy'])->name('favoritos.destroy');
 
     // Reviews (User mutations)
     Route::post('/reviews', [ReviewController::class, 'store'])->name('reviews.store');
     Route::delete('/reviews/{id}', [ReviewController::class, 'destroy'])->name('reviews.destroy');
+});
+
+Route::middleware(['auth:sanctum', 'vigenere.session', 'is.admin'])->group(function (): void {
+    Route::get('/admin/stats', [AdminController::class, 'stats'])->name('admin.stats');
+    Route::post('/admin/backup', [AdminController::class, 'backup'])->name('admin.backup');
+
+    Route::get('/usuarios', [UsuarioController::class, 'index'])->name('usuarios.index');
+    Route::post('/usuarios', [UsuarioController::class, 'store'])->name('usuarios.store');
+    Route::put('/usuarios/{id}', [UsuarioController::class, 'update'])->name('usuarios.update');
+    Route::delete('/usuarios/{id}', [UsuarioController::class, 'destroy'])->name('usuarios.destroy');
+
+    Route::post('/categorias',      [CategoriaController::class, 'store'])->name('categorias.store');
+    Route::put('/categorias/{id}',  [CategoriaController::class, 'update'])->name('categorias.update');
+    Route::delete('/categorias/{id}', [CategoriaController::class, 'destroy'])->name('categorias.destroy');
+
+    Route::post('/lugares',       [LugarController::class, 'store'])->name('lugares.store');
+    Route::put('/lugares/{id}',   [LugarController::class, 'update'])->name('lugares.update');
+    Route::delete('/lugares/{id}', [LugarController::class, 'destroy'])->name('lugares.destroy');
+
+    Route::post('/eventos',       [EventoController::class, 'store'])->name('eventos.store');
+    Route::put('/eventos/{id}',   [EventoController::class, 'update'])->name('eventos.update');
+    Route::delete('/eventos/{id}', [EventoController::class, 'destroy'])->name('eventos.destroy');
+
+    Route::post('/restaurantes',       [RestauranteController::class, 'store'])->name('restaurantes.store');
+    Route::put('/restaurantes/{id}',   [RestauranteController::class, 'update'])->name('restaurantes.update');
+    Route::delete('/restaurantes/{id}', [RestauranteController::class, 'destroy'])->name('restaurantes.destroy');
 });

@@ -16,6 +16,7 @@ use MongoDB\Laravel\Eloquent\Model;
  * @property string             $lugar_nombre
  * @property string             $estado
  * @property array              $imagenes
+ * @property float              $rating
  */
 class Evento extends Model
 {
@@ -34,6 +35,7 @@ class Evento extends Model
         'lugar_nombre',
         'estado',
         'imagenes',
+        'rating',
     ];
 
     /** @return array<string, string> */
@@ -43,6 +45,7 @@ class Evento extends Model
             'fecha'        => 'datetime',
             'fecha_inicio' => 'datetime',
             'imagenes'     => 'array',
+            'rating'       => 'float',
             'created_at'   => 'datetime',
             'updated_at'   => 'datetime',
         ];

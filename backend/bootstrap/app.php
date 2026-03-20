@@ -25,12 +25,28 @@ return Application::configure(basePath: dirname(__DIR__))
             'api/*',
         ]);
         $middleware->alias([
+            'is.admin' => \App\Http\Middleware\IsAdmin::class,
             'vigenere.session' => \App\Http\Middleware\ValidateVigenereSession::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(function (Request $request, \Throwable $e): bool {
             return $request->expectsJson() || $request->is('api/*');
+        });
+
+        // Handle InvalidArgumentException (from ImageService validation)
+        $exceptions->render(function (\InvalidArgumentException $e, Request $request) {
+            if (! $request->expectsJson() && ! $request->is('api/*')) {
+                return null;
+            }
+
+            return response()->json([
+                'status'  => 'error',
+                'message' => $e->getMessage(),
+                'errors'  => [
+                    'imagen' => [$e->getMessage()],
+                ],
+            ], 422);
         });
 
         $exceptions->render(function (\Throwable $e, Request $request) {

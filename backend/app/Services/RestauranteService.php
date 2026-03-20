@@ -8,11 +8,14 @@ use App\Models\Restaurante;
 use App\Repositories\RestauranteRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\UploadedFile;
+use InvalidArgumentException;
 
 class RestauranteService
 {
     public function __construct(
         private readonly RestauranteRepositoryInterface $restaurantes,
+        private readonly ImageService $images,
     ) {}
 
     // ──────────────────────────────────────────────
@@ -65,10 +68,11 @@ class RestauranteService
      * GeoJSON spec: coordinates are [longitude, latitude] (lng FIRST).
      *
      * @param array<string, mixed> $data
+     * @throws InvalidArgumentException If image validation fails
      */
-    public function create(array $data): Restaurante
+    public function create(array $data, ?UploadedFile $image = null): Restaurante
     {
-        $payload = $this->buildPayload($data);
+        $payload = $this->buildPayload($data, $image);
 
         /** @var Restaurante $restaurante */
         $restaurante = $this->restaurantes->create($payload);
@@ -81,13 +85,14 @@ class RestauranteService
      *
      * @param array<string, mixed> $data
      * @throws ModelNotFoundException
+     * @throws InvalidArgumentException If image validation fails
      */
-    public function update(string $id, array $data): Restaurante
+    public function update(string $id, array $data, ?UploadedFile $image = null): Restaurante
     {
         // Ensure the record exists before updating
         $this->findById($id);
 
-        $payload = $this->buildPayload($data);
+        $payload = $this->buildPayload($data, $image);
 
         /** @var Restaurante $restaurante */
         $restaurante = $this->restaurantes->update($id, $payload);
@@ -118,10 +123,22 @@ class RestauranteService
      *
      * @param  array<string, mixed> $data
      * @return array<string, mixed>
+     * @throws InvalidArgumentException If image validation fails
      */
-    private function buildPayload(array $data): array
+    private function buildPayload(array $data, ?UploadedFile $image = null): array
     {
         $payload = $data;
+
+        if (array_key_exists('rating', $payload)) {
+            $payload['rating'] = (float) $payload['rating'];
+            $payload['rating_promedio'] = (float) $payload['rating'];
+        }
+
+        // Image validation and storage (throws InvalidArgumentException on failure)
+        if ($image !== null) {
+            $imageUrl = $this->images->store($image, 'restaurantes');
+            $payload['imagenes'] = [$imageUrl];
+        }
 
         if (isset($data['latitud'], $data['longitud'])) {
             $payload['ubicacion'] = [
@@ -134,7 +151,7 @@ class RestauranteService
         }
 
         // Remove raw coordinate keys — stored only inside `ubicacion`
-        unset($payload['latitud'], $payload['longitud']);
+        unset($payload['latitud'], $payload['longitud'], $payload['imagen']);
 
         return $payload;
     }

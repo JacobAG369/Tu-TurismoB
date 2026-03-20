@@ -121,4 +121,25 @@ class AuthController extends Controller
             message: 'Perfil obtenido correctamente.',
         );
     }
+
+    /**
+     * GET /api/v1/auth/session
+     *
+     * Returns the complete authenticated user object for frontend state.
+     */
+    public function session(Request $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        // Transform _id to string manually if required, but the default serialization should handle it if casted or expected.
+        // Actually, to keep it clean and similar to 'me', we can return the array representation.
+        $userData = $user->toArray();
+        $userData['id'] = (string) $user->_id;
+
+        return $this->success(
+            data: $userData,
+            message: 'Sesión obtenida correctamente.',
+        );
+    }
 }

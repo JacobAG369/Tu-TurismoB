@@ -81,7 +81,7 @@ class LugarController extends Controller
      */
     public function store(StoreLugarRequest $request): JsonResponse
     {
-        $lugar = $this->service->create($request->validated());
+        $lugar = $this->service->create($request->validated(), $request->file('imagen'));
 
         return $this->success(
             data: $lugar,
@@ -101,7 +101,7 @@ class LugarController extends Controller
     public function update(UpdateLugarRequest $request, string $id): JsonResponse
     {
         try {
-            $lugar = $this->service->update($id, $request->validated());
+            $lugar = $this->service->update($id, $request->validated(), $request->file('imagen'));
         } catch (ModelNotFoundException) {
             return $this->error('Lugar no encontrado.', 404);
         }

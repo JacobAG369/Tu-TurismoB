@@ -6,34 +6,24 @@ namespace App\Repositories\Eloquent;
 
 use App\Models\Favorito;
 use App\Repositories\FavoritoRepositoryInterface;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 
 class FavoritoRepository extends BaseRepository implements FavoritoRepositoryInterface
 {
-    /**
-     * Constructor to bind model to repository.
-     *
-     * @param Favorito $model
-     */
     public function __construct(Favorito $model)
     {
         parent::__construct($model);
     }
 
     /**
-     * Get all favorites for a specific user.
-     *
-     * @param string $userId
-     * @param int $perPage
-     * @return LengthAwarePaginator|Collection
+     * @return Collection<int, Favorito>
      */
-    public function getFavoritesByUser(string $userId, int $perPage = 15)
+    public function getFavoritesByUser(string $userId): Collection
     {
-        $query = $this->model->where('usuario_id', $userId)->latest();
-        
-        return $perPage > 0 ? $query->paginate($perPage) : $query->get();
+        return $this->model
+            ->where('usuario_id', $userId)
+            ->orderByDesc('fecha_guardado')
+            ->get();
     }
 
     /**
@@ -51,5 +41,24 @@ class FavoritoRepository extends BaseRepository implements FavoritoRepositoryInt
             ->where('tipo', $tipo)
             ->where('referencia_id', $referenciaId)
             ->first();
+    }
+
+    public function findByUserAndResourceId(string $userId, string $referenciaId): ?Favorito
+    {
+        return $this->model
+            ->where('usuario_id', $userId)
+            ->where('referencia_id', $referenciaId)
+            ->first();
+    }
+
+    public function deleteByUserAndResourceId(string $userId, string $referenciaId): bool
+    {
+        $favorito = $this->findByUserAndResourceId($userId, $referenciaId);
+
+        if ($favorito === null) {
+            return false;
+        }
+
+        return (bool) $favorito->delete();
     }
 }

@@ -5,19 +5,16 @@ declare(strict_types=1);
 namespace App\Repositories;
 
 use App\Models\Favorito;
-use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 
 interface FavoritoRepositoryInterface extends BaseRepositoryInterface
 {
     /**
      * Get all favorites for a specific user.
      *
-     * @param string $userId
-     * @param int $perPage
-     * @return LengthAwarePaginator|Collection
+     * @return Collection<int, Favorito>
      */
-    public function getFavoritesByUser(string $userId, int $perPage = 15);
+    public function getFavoritesByUser(string $userId): Collection;
 
     /**
      * Find a specific favorite by user and reference.
@@ -28,4 +25,8 @@ interface FavoritoRepositoryInterface extends BaseRepositoryInterface
      * @return Favorito|null
      */
     public function findByUserAndReference(string $userId, string $tipo, string $referenciaId): ?Favorito;
+
+    public function findByUserAndResourceId(string $userId, string $referenciaId): ?Favorito;
+
+    public function deleteByUserAndResourceId(string $userId, string $referenciaId): bool;
 }

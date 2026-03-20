@@ -80,7 +80,7 @@ class RestauranteController extends Controller
      */
     public function store(StoreRestauranteRequest $request): JsonResponse
     {
-        $restaurante = $this->service->create($request->validated());
+        $restaurante = $this->service->create($request->validated(), $request->file('imagen'));
 
         return $this->success(
             data: $restaurante,
@@ -99,7 +99,7 @@ class RestauranteController extends Controller
     public function update(UpdateRestauranteRequest $request, string $id): JsonResponse
     {
         try {
-            $restaurante = $this->service->update($id, $request->validated());
+            $restaurante = $this->service->update($id, $request->validated(), $request->file('imagen'));
         } catch (ModelNotFoundException) {
             return $this->error('Restaurante no encontrado.', 404);
         }

@@ -23,6 +23,11 @@ class UsuarioRepository extends BaseRepository implements UsuarioRepositoryInter
         return User::where('email', $email)->first();
     }
 
+    public function getAllOrdered(): \Illuminate\Database\Eloquent\Collection
+    {
+        return User::orderByDesc('created_at')->get();
+    }
+
     /**
      * Update allowed profile fields for the given user.
      *
