@@ -73,16 +73,18 @@ class AuthService
             'ultimo_acceso' => now(),
         ]);
 
-        return [
-            'token' => $plainToken,
-            'token_type' => 'Bearer',
-            'user' => [
-                'id' => (string) $user->_id,
-                'nombre' => $user->nombre,
-                'apellido' => $user->apellido,
-                'email' => $user->email,
-                'rol' => $user->rol,
-            ],
-        ];
+         return [
+             'token' => $plainToken,
+             'token_type' => 'Bearer',
+             'user' => [
+                 'id' => (string) $user->_id,
+                 'nombre' => $user->nombre,
+                 'apellido' => $user->apellido,
+                 'email' => $user->email,
+                 'telefono' => $user->telefono,
+                 'direccion' => $user->direccion,
+                 'rol' => $user->rol,
+             ],
+         ];
     }
 }
