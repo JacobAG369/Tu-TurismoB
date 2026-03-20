@@ -6,7 +6,8 @@ namespace App\Repositories\Eloquent;
 
 use App\Models\Lugar;
 use App\Repositories\LugarRepositoryInterface;
-use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Support\Collection;
 
 class LugarRepository extends BaseRepository implements LugarRepositoryInterface
 {
@@ -20,9 +21,35 @@ class LugarRepository extends BaseRepository implements LugarRepositoryInterface
     // ──────────────────────────────────────────────
 
     /**
+     * Return lightweight markers for the map.
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    public function getMapMarkers(): Collection
+    {
+        return Lugar::select(['_id', 'nombre', 'descripcion', 'ubicacion', 'direccion', 'imagenes', 'rating', 'rating_promedio'])
+            ->get()
+            ->filter(fn (Lugar $lugar): bool => $this->hasValidGeoPoint($lugar->ubicacion))
+            ->map(fn (Lugar $lugar): array => [
+                'id' => (string) $lugar->_id,
+                'nombre' => $lugar->nombre,
+                'descripcion' => $lugar->descripcion,
+                'ubicacion' => $lugar->ubicacion,
+                'direccion' => $lugar->direccion,
+                'imagen_url' => is_array($lugar->imagenes) && count($lugar->imagenes) > 0 ? $lugar->imagenes[0] : null,
+                'imagenes' => $lugar->imagenes,
+                'rating' => $lugar->rating ?? $lugar->rating_promedio ?? 0,
+                'reviews_count' => 0, // TODO: add relationship to get actual count
+                'tipo_recurso' => 'lugar',
+                'tipo' => 'lugar',
+            ])
+            ->values();
+    }
+
+    /**
      * Return all Lugares with their Categoria pre-loaded (avoids N+1).
      */
-    public function all(): Collection
+    public function all(): EloquentCollection
     {
         return Lugar::with('categoria')->get();
     }
@@ -48,7 +75,7 @@ class LugarRepository extends BaseRepository implements LugarRepositoryInterface
      *
      * @return Collection<int, Lugar>
      */
-    public function searchByRadius(float $lat, float $lng, int $radiusInMeters): Collection
+    public function searchByRadius(float $lat, float $lng, int $radiusInMeters): EloquentCollection
     {
         return Lugar::with('categoria')
             ->where('ubicacion', 'nearSphere', [
@@ -59,5 +86,14 @@ class LugarRepository extends BaseRepository implements LugarRepositoryInterface
                 '$maxDistance' => $radiusInMeters,
             ])
             ->get();
+    }
+
+    private function hasValidGeoPoint(mixed $ubicacion): bool
+    {
+        return is_array($ubicacion)
+            && ($ubicacion['type'] ?? null) === 'Point'
+            && isset($ubicacion['coordinates'])
+            && is_array($ubicacion['coordinates'])
+            && count($ubicacion['coordinates']) === 2;
     }
 }

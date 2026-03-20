@@ -6,7 +6,8 @@ namespace App\Repositories\Eloquent;
 
 use App\Models\Restaurante;
 use App\Repositories\RestauranteRepositoryInterface;
-use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Support\Collection;
 
 class RestauranteRepository extends BaseRepository implements RestauranteRepositoryInterface
 {
@@ -16,11 +17,40 @@ class RestauranteRepository extends BaseRepository implements RestauranteReposit
     }
 
     /**
+     * Return lightweight markers for the map.
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    public function getMapMarkers(): Collection
+    {
+        return Restaurante::select(['_id', 'nombre', 'descripcion', 'ubicacion', 'direccion', 'telefono', 'horario', 'web', 'imagenes', 'rating', 'rating_promedio'])
+            ->get()
+            ->filter(fn (Restaurante $restaurante): bool => $this->hasValidGeoPoint($restaurante->ubicacion))
+            ->map(fn (Restaurante $restaurante): array => [
+                'id' => (string) $restaurante->_id,
+                'nombre' => $restaurante->nombre,
+                'descripcion' => $restaurante->descripcion,
+                'ubicacion' => $restaurante->ubicacion,
+                'direccion' => $restaurante->direccion,
+                'telefono' => $restaurante->telefono,
+                'horario' => $restaurante->horario,
+                'sitio_web' => $restaurante->web,
+                'imagen_url' => is_array($restaurante->imagenes) && count($restaurante->imagenes) > 0 ? $restaurante->imagenes[0] : null,
+                'imagenes' => $restaurante->imagenes,
+                'rating' => $restaurante->rating ?? $restaurante->rating_promedio ?? 0,
+                'reviews_count' => 0, // TODO: add relationship to get actual count
+                'tipo_recurso' => 'restaurante',
+                'tipo' => 'restaurante',
+            ])
+            ->values();
+    }
+
+    /**
      * Return all Restaurantes.
      *
      * @return Collection<int, Restaurante>
      */
-    public function all(): Collection
+    public function all(): EloquentCollection
     {
         return Restaurante::all();
     }
@@ -46,7 +76,7 @@ class RestauranteRepository extends BaseRepository implements RestauranteReposit
      *
      * @return Collection<int, Restaurante>
      */
-    public function searchByRadius(float $lat, float $lng, int $radiusInMeters): Collection
+    public function searchByRadius(float $lat, float $lng, int $radiusInMeters): EloquentCollection
     {
         return Restaurante::where('ubicacion', 'nearSphere', [
                 '$geometry'    => [
@@ -56,5 +86,14 @@ class RestauranteRepository extends BaseRepository implements RestauranteReposit
                 '$maxDistance' => $radiusInMeters,
             ])
             ->get();
+    }
+
+    private function hasValidGeoPoint(mixed $ubicacion): bool
+    {
+        return is_array($ubicacion)
+            && ($ubicacion['type'] ?? null) === 'Point'
+            && isset($ubicacion['coordinates'])
+            && is_array($ubicacion['coordinates'])
+            && count($ubicacion['coordinates']) === 2;
     }
 }

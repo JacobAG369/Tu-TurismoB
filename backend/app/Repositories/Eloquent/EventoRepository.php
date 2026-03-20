@@ -6,7 +6,8 @@ namespace App\Repositories\Eloquent;
 
 use App\Models\Evento;
 use App\Repositories\EventoRepositoryInterface;
-use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Support\Collection;
 
 class EventoRepository extends BaseRepository implements EventoRepositoryInterface
 {
@@ -16,11 +17,37 @@ class EventoRepository extends BaseRepository implements EventoRepositoryInterfa
     }
 
     /**
+     * Return lightweight markers for the map.
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    public function getMapMarkers(): Collection
+    {
+        return Evento::select(['_id', 'nombre', 'descripcion', 'ubicacion', 'fecha', 'imagenes', 'rating', 'rating_promedio'])
+            ->get()
+            ->filter(fn (Evento $evento): bool => $this->hasValidGeoPoint($evento->ubicacion))
+            ->map(fn (Evento $evento): array => [
+                'id' => (string) $evento->_id,
+                'nombre' => $evento->nombre,
+                'descripcion' => $evento->descripcion,
+                'ubicacion' => $evento->ubicacion,
+                'fecha' => $evento->fecha,
+                'imagen_url' => is_array($evento->imagenes) && count($evento->imagenes) > 0 ? $evento->imagenes[0] : null,
+                'imagenes' => $evento->imagenes,
+                'rating' => $evento->rating ?? $evento->rating_promedio ?? 0,
+                'reviews_count' => 0, // TODO: add relationship to get actual count
+                'tipo_recurso' => 'evento',
+                'tipo' => 'evento',
+            ])
+            ->values();
+    }
+
+    /**
      * Return all Eventos.
      *
      * @return Collection<int, Evento>
      */
-    public function all(): Collection
+    public function all(): EloquentCollection
     {
         return Evento::all();
     }
@@ -46,7 +73,7 @@ class EventoRepository extends BaseRepository implements EventoRepositoryInterfa
      *
      * @return Collection<int, Evento>
      */
-    public function searchByRadius(float $lat, float $lng, int $radiusInMeters): Collection
+    public function searchByRadius(float $lat, float $lng, int $radiusInMeters): EloquentCollection
     {
         return Evento::where('ubicacion', 'nearSphere', [
                 '$geometry'    => [
@@ -56,5 +83,14 @@ class EventoRepository extends BaseRepository implements EventoRepositoryInterfa
                 '$maxDistance' => $radiusInMeters,
             ])
             ->get();
+    }
+
+    private function hasValidGeoPoint(mixed $ubicacion): bool
+    {
+        return is_array($ubicacion)
+            && ($ubicacion['type'] ?? null) === 'Point'
+            && isset($ubicacion['coordinates'])
+            && is_array($ubicacion['coordinates'])
+            && count($ubicacion['coordinates']) === 2;
     }
 }
