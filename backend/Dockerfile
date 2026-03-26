@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y \
     zip \
     unzip \
     curl \
+    git \
     libssl-dev \
     pkg-config
 
@@ -32,8 +33,8 @@ COPY . /var/www/html/
 # Configurar Apache DocumentRoot
 COPY 000-default.conf /etc/apache2/sites-available/000-default.conf
 
-# Install project dependencies
-RUN composer install --no-dev --optimize-autoloader
+# Install project dependencies (with unlimited memory and root allowance)
+RUN COMPOSER_ALLOW_SUPERUSER=1 COMPOSER_MEMORY_LIMIT=-1 composer install --no-dev --optimize-autoloader
 
 # Set permissions for Laravel
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
