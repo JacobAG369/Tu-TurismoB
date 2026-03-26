@@ -54,9 +54,17 @@ return Application::configure(basePath: dirname(__DIR__))
                 return null;
             }
 
+            if ($e instanceof \Illuminate\Validation\ValidationException) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => $e->getMessage(),
+                    'errors'  => $e->errors(),
+                ], $e->status);
+            }
+
             $status = $e instanceof HttpExceptionInterface ? $e->getStatusCode() : 500;
 
-            if ($status < 500) {
+            if ($status < 500 && $status !== 401 && $status !== 403 && $status !== 404) {
                 return null;
             }
 

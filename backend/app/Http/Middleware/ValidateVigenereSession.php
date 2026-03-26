@@ -1,5 +1,7 @@
 <?php
 
+// si el token existe pero la sesión no... algo raro pasó. este middleware lo atrapa.
+
 declare(strict_types=1);
 
 namespace App\Http\Middleware;

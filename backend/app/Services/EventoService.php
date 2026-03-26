@@ -1,5 +1,7 @@
 <?php
 
+// eventos: CRUD, GeoJSON, broadcasting y notificaciones. todo en un solo lugar.
+
 declare(strict_types=1);
 
 namespace App\Services;
@@ -12,6 +14,7 @@ use App\Repositories\EventoRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use InvalidArgumentException;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 class EventoService
 {
@@ -25,8 +28,6 @@ class EventoService
     // ──────────────────────────────────────────────
 
     /**
-     * Return all Eventos.
-     *
      * @return Collection<int, Evento>
      */
     public function getAll(): Collection
@@ -35,8 +36,6 @@ class EventoService
     }
 
     /**
-     * Find a single Evento or throw 404.
-     *
      * @throws ModelNotFoundException
      */
     public function findById(string $id): Evento
@@ -51,8 +50,6 @@ class EventoService
     }
 
     /**
-     * Return all Eventos within $radiusInMeters of the given point.
-     *
      * @return Collection<int, Evento>
      */
     public function searchByRadius(float $lat, float $lng, int $radiusInMeters): Collection
@@ -65,12 +62,8 @@ class EventoService
     // ──────────────────────────────────────────────
 
     /**
-     * Build GeoJSON `ubicacion` from raw latitud/longitud and persist.
-     *
-     * GeoJSON spec: coordinates are [longitude, latitude] (lng FIRST).
-     *
-     * @param array<string, mixed> $data Must contain latitud, longitud, nombre, descripcion, fecha, imagen.
-     * @throws InvalidArgumentException If image validation fails
+     * @param array<string, mixed> $data
+     * @throws InvalidArgumentException
      */
     public function create(array $data, ?UploadedFile $image = null): Evento
     {
@@ -93,15 +86,13 @@ class EventoService
     }
 
     /**
-     * Update an Evento, rebuilding GeoJSON if coordinates are provided.
-     *
      * @param array<string, mixed> $data
      * @throws ModelNotFoundException
-     * @throws InvalidArgumentException If image validation fails
+     * @throws InvalidArgumentException
      */
     public function update(string $id, array $data, ?UploadedFile $image = null): Evento
     {
-        // Ensure the record exists before updating
+        // verificar que existe antes de actualizar
         $this->findById($id);
 
         $payload = $this->buildPayload($data, $image);
@@ -113,13 +104,11 @@ class EventoService
     }
 
     /**
-     * Delete an Evento by id.
-     *
      * @throws ModelNotFoundException
      */
     public function delete(string $id): void
     {
-        $this->findById($id);  // throws if not found
+        $this->findById($id);  // lanza excepción si no existe
 
         $this->eventos->delete($id);
     }
@@ -129,10 +118,6 @@ class EventoService
     // ──────────────────────────────────────────────
 
     /**
-     * Build the persistence payload.
-     * Converts latitud/longitud into a GeoJSON Point and removes the raw
-     * coordinate fields so they are never stored as-is.
-     *
      * @param  array<string, mixed> $data
      * @return array<string, mixed>
      */
@@ -152,7 +137,7 @@ class EventoService
             $payload['ubicacion'] = [
                 'type'        => 'Point',
                 'coordinates' => [
-                    (float) $data['longitud'],  // GeoJSON: longitude first
+                    (float) $data['longitud'],  // GeoJSON: longitud va primero
                     (float) $data['latitud'],
                 ],
             ];

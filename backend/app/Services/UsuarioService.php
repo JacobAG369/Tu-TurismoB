@@ -1,5 +1,7 @@
 <?php
 
+// gestión de usuarios: crear, actualizar, cambiar contraseña. lo de siempre.
+
 declare(strict_types=1);
 
 namespace App\Services;

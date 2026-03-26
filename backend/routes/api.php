@@ -1,5 +1,7 @@
 <?php
 
+// todas las rutas del proyecto. si algo no responde, probablemente está aquí abajo.
+
 declare(strict_types=1);
 
 use App\Http\Controllers\Api\V1\AuthController;
@@ -10,6 +12,7 @@ use App\Http\Controllers\Api\V1\EventoController;
 use App\Http\Controllers\Api\V1\RestauranteController;
 use App\Http\Controllers\Api\V1\MapaController;
 use App\Http\Controllers\Api\V1\AdminController;
+use App\Http\Controllers\Api\V1\PasswordRecoveryController;
 use App\Http\Controllers\Api\FavoritoController;
 use App\Http\Controllers\Api\ReviewController;
 use Illuminate\Support\Facades\Route;
@@ -38,6 +41,13 @@ Route::get('/', static function (): \Illuminate\Http\JsonResponse {
 Route::prefix('auth')->group(function (): void {
     Route::post('/register', [AuthController::class, 'register'])->name('auth.register');
     Route::post('/login',    [AuthController::class, 'login'])->name('auth.login');
+
+    // ── Recuperación de contraseña (throttle: 5 req/min) ──────────────────
+    Route::middleware('throttle:5,1')->group(function (): void {
+        Route::post('/password/send-code',   [PasswordRecoveryController::class, 'sendCode'])->name('auth.password.send-code');
+        Route::post('/password/verify-code', [PasswordRecoveryController::class, 'verifyCode'])->name('auth.password.verify-code');
+        Route::post('/password/reset',       [PasswordRecoveryController::class, 'resetPassword'])->name('auth.password.reset');
+    });
 });
 
 // ──────────────────────────────────────────────────────────────────────────

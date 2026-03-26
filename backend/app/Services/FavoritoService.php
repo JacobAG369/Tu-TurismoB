@@ -1,5 +1,7 @@
 <?php
 
+// favoritos: porque a veces el usuario quiere guardar un lugar y nunca más volver. funciona igual.
+
 declare(strict_types=1);
 
 namespace App\Services;

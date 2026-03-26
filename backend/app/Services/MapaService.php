@@ -1,5 +1,7 @@
 <?php
 
+// junta lugares, eventos y restaurantes para el mapa. no es la mejor interfaz, pero funciona.
+
 declare(strict_types=1);
 
 namespace App\Services;

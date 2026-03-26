@@ -1,5 +1,7 @@
 <?php
 
+// CRUD de lugares con GeoJSON. longitude va primero. sí, es al revés de lo que piensas.
+
 declare(strict_types=1);
 
 namespace App\Services;
@@ -24,8 +26,6 @@ class LugarService
     // ──────────────────────────────────────────────
 
     /**
-     * Return all Lugares (with categoria eager-loaded).
-     *
      * @return Collection<int, Lugar>
      */
     public function getAll(): Collection
@@ -34,8 +34,6 @@ class LugarService
     }
 
     /**
-     * Find a single Lugar or throw 404.
-     *
      * @throws ModelNotFoundException
      */
     public function findById(string $id): Lugar
@@ -50,8 +48,6 @@ class LugarService
     }
 
     /**
-     * Return all Lugares within $radiusInMeters of the given point.
-     *
      * @return Collection<int, Lugar>
      */
     public function searchByRadius(float $lat, float $lng, int $radiusInMeters): Collection
@@ -64,12 +60,8 @@ class LugarService
     // ──────────────────────────────────────────────
 
     /**
-     * Build GeoJSON `ubicacion` from raw latitud/longitud and persist.
-     *
-     * GeoJSON spec: coordinates are [longitude, latitude] (lng FIRST).
-     *
-     * @param array<string, mixed> $data  Must contain latitud, longitud, nombre, descripcion, categoria_id.
-     * @throws InvalidArgumentException   If image validation fails
+     * @param array<string, mixed> $data
+     * @throws InvalidArgumentException
      */
     public function create(array $data, ?UploadedFile $image = null): Lugar
     {
@@ -84,15 +76,13 @@ class LugarService
     }
 
     /**
-     * Update a Lugar, rebuilding GeoJSON if coordinates are provided.
-     *
      * @param array<string, mixed> $data
      * @throws ModelNotFoundException
-     * @throws InvalidArgumentException If image validation fails
+     * @throws InvalidArgumentException
      */
     public function update(string $id, array $data, ?UploadedFile $image = null): Lugar
     {
-        // Ensure the record exists before updating
+        // verificar que existe antes de actualizar
         $this->findById($id);
 
         $payload = $this->buildPayload($data, $image);
@@ -104,13 +94,11 @@ class LugarService
     }
 
     /**
-     * Delete a Lugar by id.
-     *
      * @throws ModelNotFoundException
      */
     public function delete(string $id): void
     {
-        $this->findById($id);  // throws if not found
+        $this->findById($id);  // lanza excepción si no existe
 
         $this->lugares->delete($id);
     }
@@ -120,13 +108,9 @@ class LugarService
     // ──────────────────────────────────────────────
 
     /**
-     * Build the persistence payload.
-     * Converts latitud/longitud into a GeoJSON Point and removes the raw
-     * coordinate fields so they are never stored as-is.
-     *
      * @param  array<string, mixed> $data
      * @return array<string, mixed>
-     * @throws InvalidArgumentException If image validation fails
+     * @throws InvalidArgumentException
      */
     private function buildPayload(array $data, ?UploadedFile $image = null): array
     {
@@ -137,7 +121,7 @@ class LugarService
             $payload['rating_promedio'] = (float) $payload['rating'];
         }
 
-        // Image validation and storage (throws InvalidArgumentException on failure)
+        // validación y almacenamiento de imagen
         if ($image !== null) {
             $imageUrl = $this->images->store($image, 'lugares');
             $payload['imagenes'] = [$imageUrl];
@@ -147,13 +131,13 @@ class LugarService
             $payload['ubicacion'] = [
                 'type'        => 'Point',
                 'coordinates' => [
-                    (float) $data['longitud'],  // GeoJSON: longitude first
+                    (float) $data['longitud'],  // GeoJSON: longitud va primero
                     (float) $data['latitud'],
                 ],
             ];
         }
 
-        // Remove raw coordinate keys — stored only inside `ubicacion`
+        // eliminar campos crudos — se guardan dentro de `ubicacion`
         unset($payload['latitud'], $payload['longitud'], $payload['imagen']);
 
         return $payload;

@@ -1,5 +1,7 @@
 <?php
 
+// el usuario. el centro de todo. el que siempre causa los bugs de autenticación.
+
 declare(strict_types=1);
 
 namespace App\Models;

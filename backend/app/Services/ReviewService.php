@@ -1,5 +1,7 @@
 <?php
 
+// reseñas de lugares. una por usuario. el rating se recalcula solo, no hay magia.
+
 declare(strict_types=1);
 
 namespace App\Services;
@@ -16,11 +18,11 @@ class ReviewService
     ) {}
 
     /**
-     * Store a new review.
+     * Guarda una nueva reseña.
      */
     public function store(array $data): array
     {
-        // Check if the user already reviewed this place
+        // verificar que el usuario no haya reseñado ya este lugar
         $existing = $this->reviewRepository->findByUserAndLugar(
             $data['usuario_id'],
             $data['lugar_id']
@@ -30,16 +32,16 @@ class ReviewService
             throw new \InvalidArgumentException('El usuario ya ha dejado una reseña para este lugar.');
         }
 
-        // Check if the place exists
+        // verificar que el lugar existe
         $lugar = $this->lugarRepository->find($data['lugar_id']);
         if (!$lugar) {
             throw new \InvalidArgumentException('El lugar especificado no existe.');
         }
 
-        // Create the review
+        // crear la reseña
         $review = $this->reviewRepository->create($data);
 
-        // Update average rating
+        // actualizar rating promedio
         $this->updateLugarAverageRating($data['lugar_id']);
 
         Log::info("Review agregada: {$review->id} por usuario {$data['usuario_id']}");
@@ -48,7 +50,7 @@ class ReviewService
     }
 
     /**
-     * Delete a review.
+     * Elimina una reseña.
      */
     public function destroy(string $id, string $userId): void
     {
@@ -65,18 +67,18 @@ class ReviewService
         $lugarId = $review->lugar_id;
         $this->reviewRepository->delete($id);
 
-        // Update average rating
+        // actualizar rating promedio
         $this->updateLugarAverageRating($lugarId);
 
         Log::info("Review eliminada: {$id} por usuario {$userId}");
     }
 
     /**
-     * Get reviews by Lugar.
+     * Obtener reseñas por lugar.
      */
     public function getByLugar(string $lugarId, int $perPage = 15)
     {
-        // Simple validation that the place exists
+        // validar que el lugar existe
         $lugar = $this->lugarRepository->find($lugarId);
         if (!$lugar) {
             throw new \InvalidArgumentException('El lugar especificado no existe.');
@@ -86,13 +88,13 @@ class ReviewService
     }
 
     /**
-     * Recalculates and updates the average rating of a Lugar.
+     * Recalcula y actualiza el rating promedio de un Lugar.
      */
     protected function updateLugarAverageRating(string $lugarId): void
     {
         $newRating = $this->reviewRepository->getAverageRatingForLugar($lugarId);
         
-        // ensure default rating of 0 instead of empty/null
+        // por defecto 0 si no hay reseñas
         if (is_null($newRating)) {
             $newRating = 0.0;
         }

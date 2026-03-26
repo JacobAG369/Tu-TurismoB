@@ -1,5 +1,7 @@
 <?php
 
+// login, tokens, sesiones... si esto falla, algo más grave ya está mal.
+
 declare(strict_types=1);
 
 namespace App\Services;

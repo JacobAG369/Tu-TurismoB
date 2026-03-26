@@ -1,5 +1,7 @@
 <?php
 
+// cifrado Vigenere hecho a mano. sí, existe AES. no, no preguntes.
+
 declare(strict_types=1);
 
 namespace App\Services;
@@ -7,14 +9,14 @@ namespace App\Services;
 /**
  * VigenereService
  *
- * Implements the Vigenere cipher for alphanumeric characters.
+ * Cifrado Vigenere para caracteres alfanuméricos.
  *
- * - Uppercase letters  → shifted within A-Z (26 chars)
- * - Lowercase letters  → shifted within a-z (26 chars)
- * - Digits             → shifted within 0-9 (10 chars)
- * - All other chars    → passed through unchanged (e.g. '|', '-')
+ * - Mayúsculas → desplazadas dentro de A-Z (26 chars)
+ * - Minúsculas → desplazadas dentro de a-z (26 chars)
+ * - Dígitos    → desplazados dentro de 0-9 (10 chars)
+ * - Otros      → pasan sin modificación (ej. '|', '-')
  *
- * The key is cycled through only for chars that are transformed.
+ * La clave solo avanza para los caracteres que se transforman.
  */
 class VigenereService
 {

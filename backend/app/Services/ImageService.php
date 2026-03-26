@@ -1,5 +1,7 @@
 <?php
 
+// sube imágenes, las valida y genera nombres únicos. esto falla si el disco falla. no hay plan B.
+
 declare(strict_types=1);
 
 namespace App\Services;
@@ -11,7 +13,7 @@ use InvalidArgumentException;
 class ImageService
 {
     /**
-     * Allowed MIME types for images
+     * Tipos MIME permitidos
      */
     private const ALLOWED_MIMES = [
         'image/jpeg',
@@ -20,7 +22,7 @@ class ImageService
     ];
 
     /**
-     * Allowed file extensions
+     * Extensiones permitidas
      */
     private const ALLOWED_EXTENSIONS = [
         'jpeg',
@@ -30,12 +32,12 @@ class ImageService
     ];
 
     /**
-     * Maximum file size in bytes (2MB)
+     * Tamaño máximo en bytes (2MB)
      */
     private const MAX_SIZE = 2 * 1024 * 1024;
 
     /**
-     * Allowed storage directories
+     * Directorios de almacenamiento permitidos
      */
     private const ALLOWED_DIRECTORIES = [
         'lugares',
@@ -46,26 +48,26 @@ class ImageService
     ];
 
     /**
-     * Store an image file with security validations.
+     * Guarda una imagen con validaciones de seguridad.
      *
-     * @param UploadedFile $file     The uploaded file
-     * @param string       $directory Storage subdirectory (lugares, eventos, etc.)
-     * @return string                 Complete public URL to the stored image
+     * @param UploadedFile $file      Archivo subido
+     * @param string       $directory Subdirectorio de almacenamiento
+     * @return string                 URL pública completa de la imagen guardada
      *
-     * @throws InvalidArgumentException If validation fails
+     * @throws InvalidArgumentException Si la validación falla
      */
     public function store(UploadedFile $file, string $directory): string
     {
-        // 1. Validate directory
+        // 1. Validar directorio
         $this->validateDirectory($directory);
 
-        // 2. Validate file
+        // 2. Validar archivo
         $this->validateFile($file);
 
-        // 3. Generate secure filename
+        // 3. Generar nombre de archivo seguro
         $filename = $this->generateSecureFilename($file);
 
-        // 4. Store file
+        // 4. Guardar archivo
         $storagePath = sprintf('%s/%s', $directory, $filename);
         $path = Storage::disk('public')->putFileAs(
             $directory,
@@ -78,19 +80,19 @@ class ImageService
             throw new InvalidArgumentException('Error al guardar la imagen en el servidor.');
         }
 
-        // 5. Return complete public URL
+        // 5. Retornar URL pública completa
         return (string) url(Storage::disk('public')->url($path));
     }
 
     /**
-     * Delete an image file from storage.
+     * Elimina una imagen del almacenamiento.
      *
-     * @param string $url Complete URL or path of the image
-     * @return bool       True if deleted successfully
+     * @param string $url URL completa o ruta de la imagen
+     * @return bool       True si se eliminó correctamente
      */
     public function delete(string $url): bool
     {
-        // Extract relative path from URL
+        // extraer ruta relativa desde la URL
         $path = $this->extractPathFromUrl($url);
 
         if (empty($path) || !Storage::disk('public')->exists($path)) {
@@ -101,7 +103,7 @@ class ImageService
     }
 
     /**
-     * Validate that the directory is whitelisted.
+     * Valida que el directorio esté en la lista blanca.
      *
      * @throws InvalidArgumentException
      */
@@ -120,20 +122,20 @@ class ImageService
     }
 
     /**
-     * Validate file MIME type, extension, and size.
+     * Valida MIME, extensión y tamaño del archivo.
      *
      * @throws InvalidArgumentException
      */
     private function validateFile(UploadedFile $file): void
     {
-        // Check MIME type
+        // verificar tipo MIME
         if (!in_array($file->getMimeType(), self::ALLOWED_MIMES, true)) {
             throw new InvalidArgumentException(
                 'Tipo de archivo no permitido. Solo se aceptan JPEG, PNG y WebP.'
             );
         }
 
-        // Check extension (additional safety)
+        // verificar extensión (por si las dudas)
         $extension = mb_strtolower(trim((string) $file->getClientOriginalExtension()));
         if (!in_array($extension, self::ALLOWED_EXTENSIONS, true)) {
             throw new InvalidArgumentException(
@@ -141,7 +143,7 @@ class ImageService
             );
         }
 
-        // Check file size
+        // verificar tamaño
         if ($file->getSize() > self::MAX_SIZE) {
             throw new InvalidArgumentException(
                 sprintf(
@@ -151,30 +153,26 @@ class ImageService
             );
         }
 
-        // Ensure file is valid
+        // verificar que el archivo es válido
         if (!$file->isValid()) {
             throw new InvalidArgumentException('El archivo cargado no es válido.');
         }
     }
 
     /**
-     * Generate a secure, unique filename to prevent overwrites and path traversal.
+     * Genera un nombre de archivo seguro y único para evitar colisiones y path traversal.
      *
-     * @return string Secure filename (e.g., img_123abc_1710873600.jpg)
+     * @return string Nombre seguro (ej: img_123abc_1710873600.jpg)
      */
     private function generateSecureFilename(UploadedFile $file): string
     {
-        // Get original extension safely
         $extension = mb_strtolower(trim((string) $file->getClientOriginalExtension()));
 
-        // Sanitize original filename (for logging purposes if needed)
         $originalName = $this->sanitizeFilename($file->getClientOriginalName());
 
-        // Generate unique identifier
-        $uniqueId = uniqid('img_', true); // e.g., img_65c4e123a4567.8901
+        $uniqueId = uniqid('img_', true);
         $timestamp = (string) time();
 
-        // Combine into secure filename
         return sprintf(
             '%s_%s.%s',
             $uniqueId,
@@ -184,27 +182,27 @@ class ImageService
     }
 
     /**
-     * Sanitize original filename by removing special characters.
+     * Sanitiza el nombre original del archivo eliminando caracteres especiales.
      *
-     * @return string Cleaned filename (for logging/metadata)
+     * @return string Nombre limpio (para logs/metadatos)
      */
     private function sanitizeFilename(string $filename): string
     {
-        // Remove extension
+        // quitar extensión
         $name = pathinfo($filename, PATHINFO_FILENAME);
 
-        // Remove special characters, keep only alphanumeric, hyphens, underscores
+        // solo alfanuméricos, guiones y guiones bajos
         $sanitized = (string) preg_replace('/[^a-zA-Z0-9\-_]/', '', $name);
 
-        // Limit length to 50 chars
+        // limitar a 50 caracteres
         return mb_substr($sanitized, 0, 50);
     }
 
     /**
-     * Extract relative path from a complete public URL.
+     * Extrae la ruta relativa desde una URL pública completa.
      *
-     * @param string $url Complete URL (e.g., http://localhost/storage/lugares/img_xyz.jpg)
-     * @return string      Relative path (e.g., lugares/img_xyz.jpg)
+     * @param string $url URL completa (ej: http://localhost/storage/lugares/img_xyz.jpg)
+     * @return string      Ruta relativa (ej: lugares/img_xyz.jpg)
      */
     private function extractPathFromUrl(string $url): string
     {

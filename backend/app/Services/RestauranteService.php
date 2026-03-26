@@ -1,5 +1,7 @@
 <?php
 
+// restaurantes: como LugarService pero con menú. misma lógica, distinta colección.
+
 declare(strict_types=1);
 
 namespace App\Services;
@@ -23,8 +25,6 @@ class RestauranteService
     // ──────────────────────────────────────────────
 
     /**
-     * Return all Restaurantes.
-     *
      * @return Collection<int, Restaurante>
      */
     public function getAll(): Collection
@@ -33,8 +33,6 @@ class RestauranteService
     }
 
     /**
-     * Find a single Restaurante or throw 404.
-     *
      * @throws ModelNotFoundException
      */
     public function findById(string $id): Restaurante
@@ -49,8 +47,6 @@ class RestauranteService
     }
 
     /**
-     * Return all Restaurantes within $radiusInMeters of the given point.
-     *
      * @return Collection<int, Restaurante>
      */
     public function searchByRadius(float $lat, float $lng, int $radiusInMeters): Collection
@@ -63,12 +59,8 @@ class RestauranteService
     // ──────────────────────────────────────────────
 
     /**
-     * Build GeoJSON `ubicacion` from raw latitud/longitud and persist.
-     *
-     * GeoJSON spec: coordinates are [longitude, latitude] (lng FIRST).
-     *
      * @param array<string, mixed> $data
-     * @throws InvalidArgumentException If image validation fails
+     * @throws InvalidArgumentException
      */
     public function create(array $data, ?UploadedFile $image = null): Restaurante
     {
@@ -81,15 +73,13 @@ class RestauranteService
     }
 
     /**
-     * Update a Restaurante, rebuilding GeoJSON if coordinates are provided.
-     *
      * @param array<string, mixed> $data
      * @throws ModelNotFoundException
-     * @throws InvalidArgumentException If image validation fails
+     * @throws InvalidArgumentException
      */
     public function update(string $id, array $data, ?UploadedFile $image = null): Restaurante
     {
-        // Ensure the record exists before updating
+        // verificar que existe antes de actualizar
         $this->findById($id);
 
         $payload = $this->buildPayload($data, $image);
@@ -101,13 +91,11 @@ class RestauranteService
     }
 
     /**
-     * Delete a Restaurante by id.
-     *
      * @throws ModelNotFoundException
      */
     public function delete(string $id): void
     {
-        $this->findById($id);  // throws if not found
+        $this->findById($id);  // lanza excepción si no existe
 
         $this->restaurantes->delete($id);
     }
@@ -117,13 +105,9 @@ class RestauranteService
     // ──────────────────────────────────────────────
 
     /**
-     * Build the persistence payload.
-     * Converts latitud/longitud into a GeoJSON Point and removes the raw
-     * coordinate fields so they are never stored as-is.
-     *
      * @param  array<string, mixed> $data
      * @return array<string, mixed>
-     * @throws InvalidArgumentException If image validation fails
+     * @throws InvalidArgumentException
      */
     private function buildPayload(array $data, ?UploadedFile $image = null): array
     {
@@ -134,7 +118,7 @@ class RestauranteService
             $payload['rating_promedio'] = (float) $payload['rating'];
         }
 
-        // Image validation and storage (throws InvalidArgumentException on failure)
+        // validación y almacenamiento de imagen
         if ($image !== null) {
             $imageUrl = $this->images->store($image, 'restaurantes');
             $payload['imagenes'] = [$imageUrl];
@@ -144,13 +128,13 @@ class RestauranteService
             $payload['ubicacion'] = [
                 'type'        => 'Point',
                 'coordinates' => [
-                    (float) $data['longitud'],  // GeoJSON: longitude first
+                    (float) $data['longitud'],  // GeoJSON: longitud va primero
                     (float) $data['latitud'],
                 ],
             ];
         }
 
-        // Remove raw coordinate keys — stored only inside `ubicacion`
+        // eliminar campos crudos — se guardan dentro de `ubicacion`
         unset($payload['latitud'], $payload['longitud'], $payload['imagen']);
 
         return $payload;

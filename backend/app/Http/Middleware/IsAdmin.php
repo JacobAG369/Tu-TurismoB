@@ -1,5 +1,7 @@
 <?php
 
+// no todo el mundo puede entrar aquí. este archivo se asegura de eso.
+
 declare(strict_types=1);
 
 namespace App\Http\Middleware;
