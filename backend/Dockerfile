@@ -15,8 +15,8 @@ RUN apt-get update && apt-get install -y \
 # Install PHP extensions
 RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
 
-# Install MongoDB extension
-RUN pecl install mongodb && docker-php-ext-enable mongodb
+# Install MongoDB extension (Versión 1.21 requerida por el composer.lock)
+RUN pecl install mongodb-1.21.4 && docker-php-ext-enable mongodb
 
 # Enable Apache mod_rewrite
 RUN a2enmod rewrite
