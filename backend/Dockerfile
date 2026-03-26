@@ -33,8 +33,8 @@ COPY . /var/www/html/
 # Configurar Apache DocumentRoot
 COPY 000-default.conf /etc/apache2/sites-available/000-default.conf
 
-# Install project dependencies (with unlimited memory and root allowance)
-RUN COMPOSER_ALLOW_SUPERUSER=1 COMPOSER_MEMORY_LIMIT=-1 composer install --no-dev --optimize-autoloader
+# Install project dependencies (without running post-scripts that miss the Render ENV)
+RUN COMPOSER_ALLOW_SUPERUSER=1 COMPOSER_MEMORY_LIMIT=-1 composer install --no-dev --optimize-autoloader --no-scripts
 
 # Set permissions for Laravel
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
