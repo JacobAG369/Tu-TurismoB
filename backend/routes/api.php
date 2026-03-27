@@ -125,6 +125,8 @@ Route::middleware(['auth:sanctum', 'vigenere.session'])->group(function (): void
 Route::middleware(['auth:sanctum', 'vigenere.session', 'is.admin'])->group(function (): void {
     Route::get('/admin/stats', [AdminController::class, 'stats'])->name('admin.stats');
     Route::post('/admin/backup', [AdminController::class, 'backup'])->name('admin.backup');
+    Route::get('/admin/backups', [AdminController::class, 'backups'])->name('admin.backups');
+    Route::get('/admin/backup/{filename}/download', [AdminController::class, 'downloadBackup'])->name('admin.backup.download');
 
     Route::get('/usuarios', [UsuarioController::class, 'index'])->name('usuarios.index');
     Route::post('/usuarios', [UsuarioController::class, 'store'])->name('usuarios.store');

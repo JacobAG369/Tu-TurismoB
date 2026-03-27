@@ -18,6 +18,12 @@ RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
 # Install MongoDB extension (Versión 1.21 requerida por el composer.lock)
 RUN pecl install mongodb-1.21.4 && docker-php-ext-enable mongodb
 
+# Install mongodump from MongoDB Database Tools (necesario para backups)
+RUN curl -O https://fastdl.mongodb.org/tools/db/mongodb-database-tools-debian11-x86_64-100.9.4.tgz && \
+    tar -zxvf mongodb-database-tools-debian11-x86_64-100.9.4.tgz && \
+    cp mongodb-database-tools-debian11-x86_64-100.9.4/bin/mongodump /usr/local/bin/ && \
+    rm -rf mongodb-database-tools-*
+
 # Enable Apache mod_rewrite
 RUN a2enmod rewrite
 

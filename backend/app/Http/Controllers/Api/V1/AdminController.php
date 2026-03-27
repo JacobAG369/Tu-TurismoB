@@ -230,4 +230,73 @@ class AdminController extends Controller
             rmdir($dir);
         }
     }
+
+    /**
+     * GET /api/v1/admin/backups
+     *
+     * Permite listar todos los backups disponibles
+     */
+    public function backups(): JsonResponse
+    {
+        $backupDir = storage_path('app/public/backups');
+        $backups = [];
+
+        if (file_exists($backupDir) && is_dir($backupDir)) {
+            $files = scandir($backupDir);
+            foreach ($files as $file) {
+                if ($file !== '.' && $file !== '..' && pathinfo($file, PATHINFO_EXTENSION) === 'zip') {
+                    $filePath = $backupDir . DIRECTORY_SEPARATOR . $file;
+                    
+                    // Parse filename: backup_{type}_{Y_m_d_H_i_s}.zip
+                    $parts = explode('_', str_replace('.zip', '', $file));
+                    $type = $parts[1] ?? 'unknown';
+                    
+                    // Parse timestamp from file creation time or parsing the name (simpler and safer to use filemtime)
+                    $timestampTemp = filemtime($filePath);
+                    
+                    if (isset($parts[2]) && count($parts) >= 8) {
+                        try {
+                            $dateStr = implode('_', array_slice($parts, 2, 6)); // Y_m_d_H_i_s
+                            $timestampTemp = \Carbon\Carbon::createFromFormat('Y_m_d_H_i_s', $dateStr)->timestamp;
+                        } catch (\Exception $e) {
+                            // ignore and use filemtime
+                        }
+                    }
+
+                    $backups[] = [
+                        'id' => $file,
+                        'type' => $type,
+                        'timestamp' => $timestampTemp * 1000,
+                        'status' => 'completado',
+                        'size' => filesize($filePath) / 1024 / 1024,
+                        'url' => asset("storage/backups/{$file}")
+                    ];
+                }
+            }
+        }
+
+        // Descending sort
+        usort($backups, fn($a, $b) => $b['timestamp'] <=> $a['timestamp']);
+
+        return $this->success(
+            data: $backups,
+            message: 'Lista de backups obtenida exitosamente.'
+        );
+    }
+
+    /**
+     * GET /api/v1/admin/backup/{filename}/download
+     *
+     * Descarga del archivo de backup generado.
+     */
+    public function downloadBackup(string $filename)
+    {
+        $filePath = storage_path("app/public/backups/{$filename}");
+
+        if (!file_exists($filePath)) {
+            return $this->error('El archivo de backup no existe.', 404);
+        }
+
+        return response()->download($filePath);
+    }
 }

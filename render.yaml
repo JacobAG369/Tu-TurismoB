@@ -29,7 +29,7 @@ services:
       - key: DB_CONNECTION
         value: mongodb
       - key: DB_DSN
-        value: mongodb+srv://jimmyavina23s:jimmy12345@cluster0.xveei.mongodb.net/?appName=Cluster0
+        sync: false # Set this securely in the Render Dashboard
       - key: DB_DATABASE
         value: tu_turismo
       - key: PORT
@@ -37,11 +37,11 @@ services:
       
       # WebSockets Config
       - key: REVERB_APP_ID
-        value: 340905
+        sync: false # Set this securely in the Render Dashboard
       - key: REVERB_APP_KEY
-        value: cjrgrnlazbewjnqarbw7
+        sync: false # Set this securely in the Render Dashboard
       - key: REVERB_APP_SECRET
-        value: na3aukkmprw6ebqhq4vm
+        sync: false # Set this securely in the Render Dashboard
       - key: PUSHER_HOST
         fromService:
           type: web
@@ -69,12 +69,12 @@ services:
       - key: DB_CONNECTION
         value: mongodb
       - key: DB_DSN
-        value: mongodb+srv://jimmyavina23s:jimmy12345@cluster0.xveei.mongodb.net/?appName=Cluster0
+        sync: false # Set this securely in the Render Dashboard
       - key: REVERB_APP_ID
-        value: 340905
+        sync: false # Set this securely in the Render Dashboard
       - key: REVERB_APP_KEY
-        value: cjrgrnlazbewjnqarbw7
+        sync: false # Set this securely in the Render Dashboard
       - key: REVERB_APP_SECRET
-        value: na3aukkmprw6ebqhq4vm
+        sync: false # Set this securely in the Render Dashboard
       - key: PORT
         value: 80 # Render nos exigirá escuchar en el puerto que le pasemos
