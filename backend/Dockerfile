@@ -12,8 +12,9 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     pkg-config
 
-# Install PHP extensions
-RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
+# Install PHP extensions (zip requiere libzip-dev)
+RUN apt-get install -y libzip-dev && \
+    docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip
 
 # Install MongoDB extension (Versión 1.21 requerida por el composer.lock)
 RUN pecl install mongodb-1.21.4 && docker-php-ext-enable mongodb
