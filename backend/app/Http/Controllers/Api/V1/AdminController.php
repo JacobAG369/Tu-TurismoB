@@ -10,11 +10,11 @@ use App\Models\Lugar;
 use App\Models\Evento;
 use App\Models\Restaurante;
 use App\Models\Favorito;
+use App\Models\Categoria;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use MongoDB\Client as MongoClient;
 use ZipArchive;
 
 class AdminController extends Controller
@@ -112,61 +112,54 @@ class AdminController extends Controller
     /**
      * POST /api/v1/admin/backup
      *
-     * Genera el backup exportando los datos directamente con el driver PHP de MongoDB.
-     * NO usa exec()/mongodump — funciona en cualquier entorno (Render Free incluido).
-     * Devuelve el ZIP como descarga directa (stream).
+     * Genera el backup usando los modelos Eloquent existentes.
+     * Sin exec(), sin MongoDB\Client crudo, sin binarios externos.
+     * Compatible con Render Free y cualquier entorno PHP.
      */
     public function backup(Request $request)
     {
-        $request->validate([
-            'type' => 'required|string',
-        ]);
+        $request->validate(['type' => 'required|string']);
 
-        $type   = $request->input('type');
-        $dsn    = env('DB_DSN');
-        $dbName = config('database.connections.mongodb.database', 'tu_turismo');
+        $type    = $request->input('type');
+        $dbName  = config('database.connections.mongodb.database', 'tu_turismo');
 
-        if (empty($dsn)) {
-            return $this->error('La variable DB_DSN no está configurada.', 500);
+        // Mapa coleccion => closure que devuelve los datos como array
+        $allCollections = [
+            'lugares'      => fn () => Lugar::all()->toArray(),
+            'eventos'      => fn () => Evento::all()->toArray(),
+            'restaurantes' => fn () => Restaurante::all()->toArray(),
+            'usuarios'     => fn () => User::all()->toArray(),
+            'favoritos'    => fn () => Favorito::all()->toArray(),
+            'categorias'   => fn () => Categoria::all()->toArray(),
+        ];
+
+        $collections = ($type === 'full')
+            ? $allCollections
+            : array_intersect_key($allCollections, [$type => true]);
+
+        if (empty($collections)) {
+            return $this->error("Tipo de backup no válido: {$type}", 422);
         }
-
-        // Colecciones disponibles
-        $allCollections = ['lugares', 'eventos', 'restaurantes', 'usuarios', 'favoritos', 'categorias'];
-        $collections    = ($type === 'full') ? $allCollections : [$type];
 
         $timestamp = now()->format('Y_m_d_H_i_s');
         $zipName   = "backup_{$type}_{$timestamp}.zip";
         $zipPath   = sys_get_temp_dir() . DIRECTORY_SEPARATOR . $zipName;
 
         try {
-            $mongo = new MongoClient($dsn);
-            $db    = $mongo->selectDatabase($dbName);
-
             $zip = new ZipArchive();
             if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
                 throw new \RuntimeException('No se pudo crear el archivo ZIP temporal.');
             }
 
-            foreach ($collections as $collection) {
+            foreach ($collections as $collName => $fetchData) {
                 try {
-                    $cursor    = $db->selectCollection($collection)->find();
-                    $documents = [];
-
-                    foreach ($cursor as $doc) {
-                        // Convertir el documento BSON a array PHP serializable
-                        $documents[] = json_decode(
-                            json_encode($doc),
-                            true
-                        );
-                    }
-
-                    $json = json_encode($documents, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
-                    $zip->addFromString("{$dbName}/{$collection}.json", $json);
-
-                    Log::info("Backup: colección {$collection} exportada", ['count' => count($documents)]);
+                    $data = $fetchData();
+                    $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+                    $zip->addFromString("{$dbName}/{$collName}.json", $json ?: '[]');
+                    Log::info("Backup: {$collName} exportada", ['count' => count($data)]);
                 } catch (\Throwable $e) {
-                    // Si una colección no existe o falla, la saltamos con log
-                    Log::warning("Backup: colección {$collection} omitida — " . $e->getMessage());
+                    Log::warning("Backup: {$collName} omitida", ['error' => $e->getMessage()]);
+                    $zip->addFromString("{$dbName}/{$collName}.json", '[]');
                 }
             }
 
@@ -180,13 +173,9 @@ class AdminController extends Controller
         } catch (\Exception $e) {
             if (file_exists($zipPath)) unlink($zipPath);
             Log::error('Backup falló: ' . $e->getMessage());
-            return $this->error(
-                message: 'Error al generar el backup: ' . $e->getMessage(),
-                code: 500
-            );
+            return $this->error('Error al generar el backup: ' . $e->getMessage(), 500);
         }
     }
-
 
     /**
      * Recursively remove a directory and its contents.
