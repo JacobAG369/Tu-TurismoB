@@ -66,6 +66,10 @@ services:
       - key: VIGENERE_KEY
         sync: false   # ← Poner en Render Dashboard (secreto)
 
+      # Almacenamiento de imágenes en la nube
+      - key: CLOUDINARY_URL
+        sync: false   # ← Poner en Render Dashboard (secreto)
+
       # Cola y cache (sin Redis en tier gratuito)
       - key: QUEUE_CONNECTION
         value: sync

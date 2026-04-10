@@ -1,14 +1,16 @@
 <?php
 
-// sube imágenes, las valida y genera nombres únicos. esto falla si el disco falla. no hay plan B.
+// Sube imágenes a Cloudinary (almacenamiento persistente en la nube).
+// Las URLs que se guardan en MongoDB son URLs de Cloudinary y nunca se pierden.
 
 declare(strict_types=1);
 
 namespace App\Services;
 
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
+use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 
 class ImageService
 {
@@ -32,12 +34,12 @@ class ImageService
     ];
 
     /**
-     * Tamaño máximo en bytes (2MB)
+     * Tamaño máximo en bytes (5MB — Cloudinary lo puede manejar)
      */
-    private const MAX_SIZE = 2 * 1024 * 1024;
+    private const MAX_SIZE = 5 * 1024 * 1024;
 
     /**
-     * Directorios de almacenamiento permitidos
+     * Directorios (carpetas en Cloudinary) permitidos
      */
     private const ALLOWED_DIRECTORIES = [
         'lugares',
@@ -48,11 +50,11 @@ class ImageService
     ];
 
     /**
-     * Guarda una imagen con validaciones de seguridad.
+     * Sube una imagen a Cloudinary.
      *
      * @param UploadedFile $file      Archivo subido
-     * @param string       $directory Subdirectorio de almacenamiento
-     * @return string                 URL pública completa de la imagen guardada
+     * @param string       $directory Carpeta en Cloudinary (ej: 'lugares')
+     * @return string                 URL pública de la imagen en Cloudinary
      *
      * @throws InvalidArgumentException Si la validación falla
      */
@@ -64,42 +66,48 @@ class ImageService
         // 2. Validar archivo
         $this->validateFile($file);
 
-        // 3. Generar nombre de archivo seguro
-        $filename = $this->generateSecureFilename($file);
+        // 3. Subir a Cloudinary en la carpeta correspondiente
+        $result = Cloudinary::upload($file->getRealPath(), [
+            'folder'         => "tu-turismo/{$directory}",
+            'resource_type'  => 'image',
+            'transformation' => [
+                ['quality' => 'auto', 'fetch_format' => 'auto'],
+            ],
+        ]);
 
-        // 4. Guardar archivo
-        $storagePath = sprintf('%s/%s', $directory, $filename);
-        $path = Storage::disk('public')->putFileAs(
-            $directory,
-            $file,
-            $filename,
-            'public'
-        );
+        $url = $result->getSecurePath();
 
-        if ($path === false) {
-            throw new InvalidArgumentException('Error al guardar la imagen en el servidor.');
+        if (empty($url)) {
+            throw new InvalidArgumentException('Cloudinary no devolvió una URL válida.');
         }
 
-        // 5. Retornar URL pública completa
-        return (string) url(Storage::disk('public')->url($path));
+        return $url;
     }
 
     /**
-     * Elimina una imagen del almacenamiento.
+     * Elimina una imagen de Cloudinary por su URL pública.
      *
-     * @param string $url URL completa o ruta de la imagen
+     * @param string $url URL de Cloudinary
      * @return bool       True si se eliminó correctamente
      */
     public function delete(string $url): bool
     {
-        // extraer ruta relativa desde la URL
-        $path = $this->extractPathFromUrl($url);
+        try {
+            $publicId = $this->extractPublicIdFromUrl($url);
 
-        if (empty($path) || !Storage::disk('public')->exists($path)) {
+            if (empty($publicId)) {
+                return false;
+            }
+
+            $result = Cloudinary::destroy($publicId);
+
+            return ($result['result'] ?? '') === 'ok';
+        } catch (\Throwable $e) {
+            Log::warning("No se pudo eliminar imagen de Cloudinary: {$e->getMessage()}", [
+                'url' => $url,
+            ]);
             return false;
         }
-
-        return Storage::disk('public')->delete($path);
     }
 
     /**
@@ -135,7 +143,7 @@ class ImageService
             );
         }
 
-        // verificar extensión (por si las dudas)
+        // verificar extensión
         $extension = mb_strtolower(trim((string) $file->getClientOriginalExtension()));
         if (!in_array($extension, self::ALLOWED_EXTENSIONS, true)) {
             throw new InvalidArgumentException(
@@ -160,57 +168,18 @@ class ImageService
     }
 
     /**
-     * Genera un nombre de archivo seguro y único para evitar colisiones y path traversal.
-     *
-     * @return string Nombre seguro (ej: img_123abc_1710873600.jpg)
+     * Extrae el public_id de Cloudinary desde la URL completa.
+     * Ejemplo URL: https://res.cloudinary.com/cloud_name/image/upload/v123456/tu-turismo/lugares/img_abc.jpg
+     * Public ID:   tu-turismo/lugares/img_abc
      */
-    private function generateSecureFilename(UploadedFile $file): string
+    private function extractPublicIdFromUrl(string $url): string
     {
-        $extension = mb_strtolower(trim((string) $file->getClientOriginalExtension()));
+        // Eliminar query string si lo hay
+        $url = strtok($url, '?');
 
-        $originalName = $this->sanitizeFilename($file->getClientOriginalName());
-
-        $uniqueId = uniqid('img_', true);
-        $timestamp = (string) time();
-
-        return sprintf(
-            '%s_%s.%s',
-            $uniqueId,
-            $timestamp,
-            $extension
-        );
-    }
-
-    /**
-     * Sanitiza el nombre original del archivo eliminando caracteres especiales.
-     *
-     * @return string Nombre limpio (para logs/metadatos)
-     */
-    private function sanitizeFilename(string $filename): string
-    {
-        // quitar extensión
-        $name = pathinfo($filename, PATHINFO_FILENAME);
-
-        // solo alfanuméricos, guiones y guiones bajos
-        $sanitized = (string) preg_replace('/[^a-zA-Z0-9\-_]/', '', $name);
-
-        // limitar a 50 caracteres
-        return mb_substr($sanitized, 0, 50);
-    }
-
-    /**
-     * Extrae la ruta relativa desde una URL pública completa.
-     *
-     * @param string $url URL completa (ej: http://localhost/storage/lugares/img_xyz.jpg)
-     * @return string      Ruta relativa (ej: lugares/img_xyz.jpg)
-     */
-    private function extractPathFromUrl(string $url): string
-    {
-        $storageUrl = Storage::disk('public')->url('/');
-        $baseUrl = url($storageUrl);
-
-        if (str_starts_with($url, $baseUrl)) {
-            return (string) str_replace($baseUrl, '', $url);
+        // Buscar el segmento después de /upload/ y quitar la versión (v12345/)
+        if (preg_match('#/upload/(?:v\d+/)?(.+?)(?:\.[a-z]+)?$#i', $url, $matches)) {
+            return $matches[1];
         }
 
         return '';

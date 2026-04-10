@@ -112,10 +112,11 @@ class AdminController extends Controller
     /**
      * POST /api/v1/admin/backup
      *
-     * Accepts a 'type' parameter ('full' or collection name).
-     * Uses exec() to run mongodump, zips the result, and returns the download URL.
+     * Genera el backup con mongodump, lo comprime en un ZIP temporal
+     * y lo devuelve directamente como descarga (stream).
+     * NO guarda archivos permanentemente en disco (compatible con Render Free).
      */
-    public function backup(Request $request): JsonResponse
+    public function backup(Request $request)
     {
         $request->validate([
             'type' => 'required|string',
@@ -123,88 +124,80 @@ class AdminController extends Controller
 
         $type = $request->input('type');
 
+        $dsn = env('DB_DSN');
+        if (empty($dsn)) {
+            return $this->error('La variable DB_DSN no está configurada.', 500);
+        }
+
+        $dbName = config('database.connections.mongodb.database', 'tu_turismo');
+
+        $timestamp  = now()->format('Y_m_d_H_i_s');
+        $folderName = "backup_{$type}_{$timestamp}";
+        $zipName    = "{$folderName}.zip";
+
+        // Directorios temporales (serán eliminados tras la descarga)
+        $tempPath = sys_get_temp_dir() . DIRECTORY_SEPARATOR . $folderName;
+        $zipPath  = sys_get_temp_dir() . DIRECTORY_SEPARATOR . $zipName;
+
         try {
-            $dsn = env('DB_DSN');
-            if (empty($dsn)) {
-                throw new \RuntimeException("La variable DB_DSN no está configurada.");
-            }
-
-            $dbName = config('database.connections.mongodb.database', 'tu_turismo');
-            
-            // Setup folder Names
-            $timestamp = now()->format('Y_m_d_H_i_s');
-            $folderName = "backup_{$type}_{$timestamp}";
-            $zipName = "{$folderName}.zip";
-
-            // Storage paths
-            $backupDir = storage_path('app/public/backups');
-            if (!file_exists($backupDir)) {
-                mkdir($backupDir, 0755, true);
-            }
-
-            $tempPath = storage_path("app/temp/{$folderName}");
             if (!file_exists($tempPath)) {
                 mkdir($tempPath, 0755, true);
             }
 
-            // Command for mongodump
+            // Ejecutar mongodump
             $cmd = "mongodump --uri=\"{$dsn}\" --db=\"{$dbName}\" --out=\"{$tempPath}\"";
             if ($type !== 'full') {
                 $cmd .= " --collection=\"{$type}\"";
             }
 
-            // Run command
-            $output = [];
+            $output     = [];
             $resultCode = null;
-            exec($cmd, $output, $resultCode);
+            exec($cmd . ' 2>&1', $output, $resultCode);
 
             if ($resultCode !== 0) {
-                // Return 500 without crashing the whole application
+                $this->removeDir($tempPath);
                 return $this->error(
-                    message: "mongodump falló con el código {$resultCode}.",
+                    message: 'mongodump falló. Verifica que la herramienta esté instalada. Código: ' . $resultCode,
                     code: 500
                 );
             }
 
-            // Path to resulting zip
-            $zipPath = "{$backupDir}/{$zipName}";
-            
-            // Zip the folder
+            // Comprimir en ZIP
             $zip = new ZipArchive();
-            if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) === true) {
-                // Add files recursively
-                $files = new RecursiveIteratorIterator(
-                    new RecursiveDirectoryIterator($tempPath),
-                    RecursiveIteratorIterator::LEAVES_ONLY
-                );
-
-                foreach ($files as $name => $file) {
-                    if (!$file->isDir()) {
-                        $filePath = $file->getRealPath();
-                        // Get relative path for zip internal structure
-                        $relativePath = substr($filePath, strlen($tempPath) + 1);
-                        $zip->addFile($filePath, $relativePath);
-                    }
-                }
-                $zip->close();
-            } else {
-                throw new \RuntimeException("No se pudo crear el archivo zip: {$zipPath}");
+            if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+                throw new \RuntimeException("No se pudo crear el archivo ZIP temporal.");
             }
 
-            // Clean up temporary mongodump folder
-            $this->removeDir($tempPath);
-
-            // Using asset() pointing to storage to return proper download URL
-            $url = asset("storage/backups/{$zipName}");
-
-            return $this->success(
-                data: ['url' => $url, 'filename' => $zipName],
-                message: 'Backup generado exitosamente.'
+            $files = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($tempPath),
+                RecursiveIteratorIterator::LEAVES_ONLY
             );
 
+            foreach ($files as $file) {
+                if (!$file->isDir()) {
+                    $filePath     = $file->getRealPath();
+                    $relativePath = substr($filePath, strlen($tempPath) + 1);
+                    $zip->addFile($filePath, $relativePath);
+                }
+            }
+            $zip->close();
+
+            // Limpiar carpeta temporal del mongodump
+            $this->removeDir($tempPath);
+
+            // Devolver el ZIP como descarga directa (stream) y eliminar el archivo al terminar
+            return response()->download($zipPath, $zipName, [
+                'Content-Type'        => 'application/zip',
+                'Content-Disposition' => 'attachment; filename="' . $zipName . '"',
+            ])->deleteFileAfterSend(true);
+
         } catch (\Exception $e) {
+            // Cleanup en caso de error
+            if (file_exists($tempPath)) $this->removeDir($tempPath);
+            if (file_exists($zipPath))  unlink($zipPath);
+
             return $this->error(
-                message: 'Error de sistema al generar el backup: ' . $e->getMessage(),
+                message: 'Error al generar el backup: ' . $e->getMessage(),
                 code: 500
             );
         }
@@ -234,69 +227,29 @@ class AdminController extends Controller
     /**
      * GET /api/v1/admin/backups
      *
-     * Permite listar todos los backups disponibles
+     * En producción con filesystem efímero (Render Free), los backups
+     * se generan on-demand y se descargan directamente (no persisten en disco).
+     * Este endpoint devuelve lista vacía para mantener compatibilidad con el frontend.
      */
     public function backups(): JsonResponse
     {
-        $backupDir = storage_path('app/public/backups');
-        $backups = [];
-
-        if (file_exists($backupDir) && is_dir($backupDir)) {
-            $files = scandir($backupDir);
-            foreach ($files as $file) {
-                if ($file !== '.' && $file !== '..' && pathinfo($file, PATHINFO_EXTENSION) === 'zip') {
-                    $filePath = $backupDir . DIRECTORY_SEPARATOR . $file;
-                    
-                    // Parse filename: backup_{type}_{Y_m_d_H_i_s}.zip
-                    $parts = explode('_', str_replace('.zip', '', $file));
-                    $type = $parts[1] ?? 'unknown';
-                    
-                    // Parse timestamp from file creation time or parsing the name (simpler and safer to use filemtime)
-                    $timestampTemp = filemtime($filePath);
-                    
-                    if (isset($parts[2]) && count($parts) >= 8) {
-                        try {
-                            $dateStr = implode('_', array_slice($parts, 2, 6)); // Y_m_d_H_i_s
-                            $timestampTemp = \Carbon\Carbon::createFromFormat('Y_m_d_H_i_s', $dateStr)->timestamp;
-                        } catch (\Exception $e) {
-                            // ignore and use filemtime
-                        }
-                    }
-
-                    $backups[] = [
-                        'id' => $file,
-                        'type' => $type,
-                        'timestamp' => $timestampTemp * 1000,
-                        'status' => 'completado',
-                        'size' => filesize($filePath) / 1024 / 1024,
-                        'url' => asset("storage/backups/{$file}")
-                    ];
-                }
-            }
-        }
-
-        // Descending sort
-        usort($backups, fn($a, $b) => $b['timestamp'] <=> $a['timestamp']);
-
         return $this->success(
-            data: $backups,
-            message: 'Lista de backups obtenida exitosamente.'
+            data: [],
+            message: 'Los backups se generan y descargan directamente. Use el botón "Generar Backup".'
         );
     }
 
     /**
      * GET /api/v1/admin/backup/{filename}/download
      *
-     * Descarga del archivo de backup generado.
+     * Endpoint mantenido para compatibilidad. En producción los backups
+     * se descargan directamente desde POST /backup.
      */
     public function downloadBackup(string $filename)
     {
-        $filePath = storage_path("app/public/backups/{$filename}");
-
-        if (!file_exists($filePath)) {
-            return $this->error('El archivo de backup no existe.', 404);
-        }
-
-        return response()->download($filePath);
+        return $this->error(
+            'En producción los backups se generan y descargan directamente. Use POST /api/v1/admin/backup.',
+            410
+        );
     }
 }
