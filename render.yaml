@@ -1,14 +1,17 @@
 services:
-  # Servicio Web 1: Backend API Principal (Laravel + Apache)
+  # ─────────────────────────────────────────────
+  # Servicio 1: Backend API Principal (Laravel + Apache + Docker)
+  # ─────────────────────────────────────────────
   - type: web
     name: tutu-backend
     env: docker
     rootDir: backend
     dockerfilePath: ./Dockerfile
-    # Render free tier
     plan: free
     healthCheckPath: /up
     envVars:
+      - key: APP_NAME
+        value: Tu-Turismo
       - key: APP_ENV
         value: production
       - key: APP_DEBUG
@@ -20,61 +23,121 @@ services:
           envVarKey: RENDER_EXTERNAL_URL
       - key: APP_KEY
         generateValue: true
+
+      # Frontend — URL del Static Site en Render
       - key: FRONTEND_URL
-        value: https://tuturismo.vercel.app
+        value: https://tutu-frontend.onrender.com
       - key: SANCTUM_STATEFUL_DOMAINS
-        value: tuturismo.vercel.app
+        value: tutu-frontend.onrender.com
       - key: SESSION_DOMAIN
-        value: tuturismo.vercel.app
+        value: tutu-frontend.onrender.com
+      - key: SESSION_DRIVER
+        value: cookie
+      - key: SESSION_LIFETIME
+        value: 120
+
+      # Base de datos MongoDB Atlas
       - key: DB_CONNECTION
         value: mongodb
       - key: DB_DSN
-        sync: false # Set this securely in the Render Dashboard
+        sync: false   # ← Poner en Render Dashboard (secreto)
       - key: DB_DATABASE
         value: tu_turismo
-      - key: PORT
-        value: 80 # Requerido por nuestro Dockerfile (Apache)
-      
-      # WebSockets Config
+
+      # Correo (Gmail SMTP)
+      - key: MAIL_MAILER
+        value: smtp
+      - key: MAIL_HOST
+        value: smtp.gmail.com
+      - key: MAIL_PORT
+        value: 587
+      - key: MAIL_ENCRYPTION
+        value: tls
+      - key: MAIL_FROM_NAME
+        value: Tu-Turismo
+      - key: MAIL_USERNAME
+        sync: false   # ← Poner en Render Dashboard (secreto)
+      - key: MAIL_PASSWORD
+        sync: false   # ← Poner en Render Dashboard (secreto)
+      - key: MAIL_FROM_ADDRESS
+        sync: false   # ← Poner en Render Dashboard (secreto)
+
+      # Cifrado Vigenere
+      - key: VIGENERE_KEY
+        sync: false   # ← Poner en Render Dashboard (secreto)
+
+      # Cola y cache (sin Redis en tier gratuito)
+      - key: QUEUE_CONNECTION
+        value: sync
+      - key: CACHE_STORE
+        value: file
+      - key: FILESYSTEM_DISK
+        value: local
+
+      # Logs
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: LOG_LEVEL
+        value: error
+
+      # WebSockets — Reverb
+      - key: BROADCAST_CONNECTION
+        value: reverb
       - key: REVERB_APP_ID
-        sync: false # Set this securely in the Render Dashboard
+        sync: false   # ← Poner en Render Dashboard
       - key: REVERB_APP_KEY
-        sync: false # Set this securely in the Render Dashboard
+        sync: false   # ← Poner en Render Dashboard
       - key: REVERB_APP_SECRET
-        sync: false # Set this securely in the Render Dashboard
+        sync: false   # ← Poner en Render Dashboard
       - key: PUSHER_HOST
         fromService:
           type: web
           name: tutu-reverb
-          envVarKey: RENDER_EXTERNAL_HOSTNAME # Se inyecta auto desde el otro servicio
+          envVarKey: RENDER_EXTERNAL_HOSTNAME
       - key: PUSHER_PORT
         value: 443
       - key: PUSHER_SCHEME
         value: https
 
-  # Servicio Web 2: Servidor de WebSockets Autónomo (Reverb)
+      - key: PORT
+        value: 80
+
+  # ─────────────────────────────────────────────
+  # Servicio 2: Servidor WebSockets Reverb (Docker)
+  # ─────────────────────────────────────────────
   - type: web
     name: tutu-reverb
     env: docker
     rootDir: backend
     dockerfilePath: ./Dockerfile
-    # Sobrescribimos el ENTRYPOINT para no correr Apache, solo Reverb
     dockerCommand: "php artisan reverb:start --host=0.0.0.0 --port=80"
     plan: free
     envVars:
+      - key: APP_NAME
+        value: Tu-Turismo
       - key: APP_ENV
         value: production
+      - key: APP_DEBUG
+        value: false
       - key: APP_KEY
         generateValue: true
       - key: DB_CONNECTION
         value: mongodb
       - key: DB_DSN
-        sync: false # Set this securely in the Render Dashboard
+        sync: false   # ← Poner en Render Dashboard (secreto)
+      - key: DB_DATABASE
+        value: tu_turismo
+      - key: BROADCAST_CONNECTION
+        value: reverb
       - key: REVERB_APP_ID
-        sync: false # Set this securely in the Render Dashboard
+        sync: false   # ← Poner en Render Dashboard
       - key: REVERB_APP_KEY
-        sync: false # Set this securely in the Render Dashboard
+        sync: false   # ← Poner en Render Dashboard
       - key: REVERB_APP_SECRET
-        sync: false # Set this securely in the Render Dashboard
+        sync: false   # ← Poner en Render Dashboard
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: LOG_LEVEL
+        value: error
       - key: PORT
-        value: 80 # Render nos exigirá escuchar en el puerto que le pasemos
+        value: 80
