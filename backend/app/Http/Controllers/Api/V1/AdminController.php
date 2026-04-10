@@ -13,8 +13,8 @@ use App\Models\Favorito;
 use App\Traits\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use RecursiveDirectoryIterator;
-use RecursiveIteratorIterator;
+use Illuminate\Support\Facades\Log;
+use MongoDB\Client as MongoClient;
 use ZipArchive;
 
 class AdminController extends Controller
@@ -112,9 +112,9 @@ class AdminController extends Controller
     /**
      * POST /api/v1/admin/backup
      *
-     * Genera el backup con mongodump, lo comprime en un ZIP temporal
-     * y lo devuelve directamente como descarga (stream).
-     * NO guarda archivos permanentemente en disco (compatible con Render Free).
+     * Genera el backup exportando los datos directamente con el driver PHP de MongoDB.
+     * NO usa exec()/mongodump — funciona en cualquier entorno (Render Free incluido).
+     * Devuelve el ZIP como descarga directa (stream).
      */
     public function backup(Request $request)
     {
@@ -122,98 +122,71 @@ class AdminController extends Controller
             'type' => 'required|string',
         ]);
 
-        $type = $request->input('type');
+        $type   = $request->input('type');
+        $dsn    = env('DB_DSN');
+        $dbName = config('database.connections.mongodb.database', 'tu_turismo');
 
-        $dsn = env('DB_DSN');
         if (empty($dsn)) {
             return $this->error('La variable DB_DSN no está configurada.', 500);
         }
 
-        $dbName = config('database.connections.mongodb.database', 'tu_turismo');
+        // Colecciones disponibles
+        $allCollections = ['lugares', 'eventos', 'restaurantes', 'usuarios', 'favoritos', 'categorias'];
+        $collections    = ($type === 'full') ? $allCollections : [$type];
 
-        $timestamp  = now()->format('Y_m_d_H_i_s');
-        $folderName = "backup_{$type}_{$timestamp}";
-        $zipName    = "{$folderName}.zip";
-
-        // Directorios temporales (serán eliminados tras la descarga)
-        $tempPath = sys_get_temp_dir() . DIRECTORY_SEPARATOR . $folderName;
-        $zipPath  = sys_get_temp_dir() . DIRECTORY_SEPARATOR . $zipName;
+        $timestamp = now()->format('Y_m_d_H_i_s');
+        $zipName   = "backup_{$type}_{$timestamp}.zip";
+        $zipPath   = sys_get_temp_dir() . DIRECTORY_SEPARATOR . $zipName;
 
         try {
-            if (!file_exists($tempPath)) {
-                mkdir($tempPath, 0755, true);
-            }
+            $mongo = new MongoClient($dsn);
+            $db    = $mongo->selectDatabase($dbName);
 
-            // Ejecutar mongodump con ruta absoluta (Apache/PHP exec no hereda el PATH completo)
-            $mongodump = '/usr/local/bin/mongodump';
-            if (!file_exists($mongodump)) {
-                // Fallback: buscar en PATH del sistema
-                $mongodump = 'mongodump';
-            }
-
-            $cmd = "{$mongodump} --uri=\"{$dsn}\" --db=\"{$dbName}\" --out=\"{$tempPath}\"";
-            if ($type !== 'full') {
-                $cmd .= " --collection=\"{$type}\"";
-            }
-
-            $output     = [];
-            $resultCode = null;
-            exec($cmd . ' 2>&1', $output, $resultCode);
-
-            \Illuminate\Support\Facades\Log::info('Backup mongodump', [
-                'type'        => $type,
-                'resultCode'  => $resultCode,
-                'output'      => implode("\n", $output),
-            ]);
-
-            if ($resultCode !== 0) {
-                $this->removeDir($tempPath);
-                return $this->error(
-                    message: 'mongodump falló (código ' . $resultCode . '): ' . implode(' | ', $output),
-                    code: 500
-                );
-            }
-
-            // Comprimir en ZIP
             $zip = new ZipArchive();
             if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
-                throw new \RuntimeException("No se pudo crear el archivo ZIP temporal.");
+                throw new \RuntimeException('No se pudo crear el archivo ZIP temporal.');
             }
 
-            $files = new RecursiveIteratorIterator(
-                new RecursiveDirectoryIterator($tempPath),
-                RecursiveIteratorIterator::LEAVES_ONLY
-            );
+            foreach ($collections as $collection) {
+                try {
+                    $cursor    = $db->selectCollection($collection)->find();
+                    $documents = [];
 
-            foreach ($files as $file) {
-                if (!$file->isDir()) {
-                    $filePath     = $file->getRealPath();
-                    $relativePath = substr($filePath, strlen($tempPath) + 1);
-                    $zip->addFile($filePath, $relativePath);
+                    foreach ($cursor as $doc) {
+                        // Convertir el documento BSON a array PHP serializable
+                        $documents[] = json_decode(
+                            json_encode($doc),
+                            true
+                        );
+                    }
+
+                    $json = json_encode($documents, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+                    $zip->addFromString("{$dbName}/{$collection}.json", $json);
+
+                    Log::info("Backup: colección {$collection} exportada", ['count' => count($documents)]);
+                } catch (\Throwable $e) {
+                    // Si una colección no existe o falla, la saltamos con log
+                    Log::warning("Backup: colección {$collection} omitida — " . $e->getMessage());
                 }
             }
+
             $zip->close();
 
-            // Limpiar carpeta temporal del mongodump
-            $this->removeDir($tempPath);
-
-            // Devolver el ZIP como descarga directa (stream) y eliminar el archivo al terminar
             return response()->download($zipPath, $zipName, [
                 'Content-Type'        => 'application/zip',
                 'Content-Disposition' => 'attachment; filename="' . $zipName . '"',
             ])->deleteFileAfterSend(true);
 
         } catch (\Exception $e) {
-            // Cleanup en caso de error
-            if (file_exists($tempPath)) $this->removeDir($tempPath);
-            if (file_exists($zipPath))  unlink($zipPath);
-
+            if (file_exists($zipPath)) unlink($zipPath);
+            Log::error('Backup falló: ' . $e->getMessage());
             return $this->error(
                 message: 'Error al generar el backup: ' . $e->getMessage(),
                 code: 500
             );
         }
     }
+
 
     /**
      * Recursively remove a directory and its contents.
