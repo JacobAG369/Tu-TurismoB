@@ -7,19 +7,13 @@ namespace App\Events;
 use App\Models\Evento;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class NuevoEventoPublicado implements ShouldBroadcast
+class NuevoEventoPublicado implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
-
-    public string $connection = 'database';
-
-    public string $queue = 'broadcasts';
-
-    public bool $afterCommit = true;
 
     public function __construct(
         public readonly Evento $evento,

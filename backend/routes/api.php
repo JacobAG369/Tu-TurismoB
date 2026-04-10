@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V1\EventoController;
 use App\Http\Controllers\Api\V1\RestauranteController;
 use App\Http\Controllers\Api\V1\MapaController;
 use App\Http\Controllers\Api\V1\AdminController;
+use App\Http\Controllers\Api\V1\NotificacionController;
 use App\Http\Controllers\Api\V1\PasswordRecoveryController;
 use App\Http\Controllers\Api\FavoritoController;
 use App\Http\Controllers\Api\ReviewController;
@@ -120,6 +121,15 @@ Route::middleware(['auth:sanctum', 'vigenere.session'])->group(function (): void
     // Reviews (User mutations)
     Route::post('/reviews', [ReviewController::class, 'store'])->name('reviews.store');
     Route::delete('/reviews/{id}', [ReviewController::class, 'destroy'])->name('reviews.destroy');
+
+    // Notificaciones — cada usuario gestiona las suyas
+    Route::prefix('notificaciones')->group(function (): void {
+        Route::get('/',                 [NotificacionController::class, 'index'])->name('notificaciones.index');
+        Route::patch('/read-all',       [NotificacionController::class, 'markAllAsRead'])->name('notificaciones.read-all');
+        Route::patch('/{id}/read',      [NotificacionController::class, 'markAsRead'])->name('notificaciones.read');
+        Route::delete('/',              [NotificacionController::class, 'destroyAll'])->name('notificaciones.destroy-all');
+        Route::delete('/{id}',          [NotificacionController::class, 'destroy'])->name('notificaciones.destroy');
+    });
 });
 
 Route::middleware(['auth:sanctum', 'vigenere.session', 'is.admin'])->group(function (): void {

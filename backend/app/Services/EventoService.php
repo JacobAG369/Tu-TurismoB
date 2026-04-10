@@ -10,6 +10,7 @@ use App\Events\EventoCreado;
 use App\Events\NuevoEventoPublicado;
 use App\Models\Evento;
 use App\Models\Notificacion;
+use App\Models\User;
 use App\Repositories\EventoRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -72,12 +73,16 @@ class EventoService
         /** @var Evento $evento */
         $evento = $this->eventos->create($payload);
 
-        Notificacion::create([
-            'usuario_id' => null,
-            'titulo' => 'Nuevo evento turistico disponible',
-            'mensaje' => sprintf('Ya puedes explorar el evento "%s" en el mapa.', $evento->nombre),
-            'leido' => false,
-        ]);
+        // Crear una notificación para cada usuario registrado
+        $mensaje = sprintf('Ya puedes explorar el evento "%s" en el mapa.', $evento->nombre);
+        User::all()->each(function (User $user) use ($mensaje): void {
+            Notificacion::create([
+                'usuario_id' => (string) $user->_id,
+                'titulo'     => 'Nuevo evento turístico disponible',
+                'mensaje'    => $mensaje,
+                'leido'      => false,
+            ]);
+        });
 
         EventoCreado::dispatch($evento);
         NuevoEventoPublicado::dispatch($evento);
