@@ -26,9 +26,9 @@ services:
 
       # Frontend — URL del Static Site en Render
       - key: FRONTEND_URL
-        value: https://tutu-frontend.onrender.com
+        value: https://tutu-frontend.onrender.com,https://tu-turismo.com.mx
       - key: SANCTUM_STATEFUL_DOMAINS
-        value: tutu-frontend.onrender.com
+        value: tutu-frontend.onrender.com,tu-turismo.com.mx
       - key: SESSION_DOMAIN
         value: tutu-frontend.onrender.com
       - key: SESSION_DRIVER
