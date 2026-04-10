@@ -144,8 +144,14 @@ class AdminController extends Controller
                 mkdir($tempPath, 0755, true);
             }
 
-            // Ejecutar mongodump
-            $cmd = "mongodump --uri=\"{$dsn}\" --db=\"{$dbName}\" --out=\"{$tempPath}\"";
+            // Ejecutar mongodump con ruta absoluta (Apache/PHP exec no hereda el PATH completo)
+            $mongodump = '/usr/local/bin/mongodump';
+            if (!file_exists($mongodump)) {
+                // Fallback: buscar en PATH del sistema
+                $mongodump = 'mongodump';
+            }
+
+            $cmd = "{$mongodump} --uri=\"{$dsn}\" --db=\"{$dbName}\" --out=\"{$tempPath}\"";
             if ($type !== 'full') {
                 $cmd .= " --collection=\"{$type}\"";
             }
@@ -154,10 +160,16 @@ class AdminController extends Controller
             $resultCode = null;
             exec($cmd . ' 2>&1', $output, $resultCode);
 
+            \Illuminate\Support\Facades\Log::info('Backup mongodump', [
+                'type'        => $type,
+                'resultCode'  => $resultCode,
+                'output'      => implode("\n", $output),
+            ]);
+
             if ($resultCode !== 0) {
                 $this->removeDir($tempPath);
                 return $this->error(
-                    message: 'mongodump falló. Verifica que la herramienta esté instalada. Código: ' . $resultCode,
+                    message: 'mongodump falló (código ' . $resultCode . '): ' . implode(' | ', $output),
                     code: 500
                 );
             }
